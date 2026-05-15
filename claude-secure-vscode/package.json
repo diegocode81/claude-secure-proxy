@@ -1,0 +1,49 @@
+{
+  "name": "claude-secure-vscode",
+  "displayName": "Claude Secure VS Code",
+  "description": "Analiza selecciones y errores con contexto del proyecto usando claude-secure-proxy.",
+  "version": "0.1.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:claudeSecure.analyzeSelection",
+    "onCommand:claudeSecure.analyzeSelectionWithWorkspaceContext",
+    "onCommand:claude-secure-vscode.analyzeErrorWithContext"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "claudeSecure.analyzeSelection",
+        "title": "Claude Seguro: Analizar selección"
+      },
+      {
+        "command": "claudeSecure.analyzeSelectionWithWorkspaceContext",
+        "title": "Claude Seguro: Analizar error con contexto del proyecto"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "claudeSecure.analyzeSelection",
+          "when": "editorHasSelection",
+          "group": "navigation@10"
+        },
+        {
+          "command": "claudeSecure.analyzeSelectionWithWorkspaceContext",
+          "when": "editorHasSelection",
+          "group": "navigation@11"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "check": "node --check extension.js"
+  },
+  "devDependencies": {}
+}
