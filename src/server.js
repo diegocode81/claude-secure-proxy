@@ -1,60 +1,50 @@
 import http from 'node:http';
-import './env.js';
-import { sanitizeText } from './sanitizer.js';
-import { callClaude } from './claude.js';
-import { renderDashboard } from './dashboard.js';
+import path from 'node:path';
+import './config/env.js';
+import { callClaude } from './llm/claude.client.js';
+import { sanitizeText } from './security/sanitizer.js';
+import {
+  ERROR_ANALYSIS_INSTRUCTION,
+  ERROR_CONTEXT_ANALYSIS_INSTRUCTION
+} from './agents/qa-log-analyst/profile.js';
+import { getAgentProfile } from './agents/registry.js';
+import {
+  createAgentResponse,
+  runAgent,
+  validateAgentInputSchema,
+  validateAgentRunRequest
+} from './agents/shared/runtime/index.js';
+import { handleDashboardRoutes } from './routes/dashboard.routes.js';
+import { handleDownloadsRoutes } from './routes/downloads.routes.js';
+import { handleHealthRoutes } from './routes/health.routes.js';
+import { handleModulesRoutes } from './routes/modules.routes.js';
 import {
   getUsageSummary,
-  isBudgetExceeded,
-  isBudgetWarning,
   recordBlockedRequest,
   recordClaudeUsage,
   resetUsage
-} from './usage.js';
+} from './usage/usage-store.js';
+import {
+  isBudgetExceeded,
+  isBudgetWarning
+} from './usage/budget-service.js';
 
 const PORT = Number(process.env.PORT || 3000);
 const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 1024 * 1024);
 const MAX_WORKSPACE_FILES = 10;
 const MAX_SNIPPET_LINES = 300;
 const MAX_CONTEXT_CHARS = 60000;
+const VSCODE_EXTENSION_FILE = path.resolve(
+  process.cwd(),
+  'claude-secure-vscode',
+  'claude-secure-vscode-0.1.0.vsix'
+);
+const VSCODE_EXTENSION_DOWNLOAD_NAME = 'claude-secure-vscode-0.1.0.vsix';
 
 const DEFAULT_ANALYZE_INSTRUCTION = [
   'Actua como un analista QA senior.',
   'Analiza el contenido recibido y responde en espanol con hallazgos, riesgos y recomendaciones concretas.'
 ].join(' ');
-
-const ERROR_ANALYSIS_INSTRUCTION = `Actúa como QA Architect senior especializado en análisis de errores, logs, debugging de frontend, backend, APIs, automatización y pipelines CI/CD. Analiza el siguiente error y responde en español con esta estructura:
-
-1. Resumen del problema
-2. Causa raíz probable
-3. Evidencia encontrada en el log o código
-4. Impacto QA
-5. Pasos para reproducir
-6. Validaciones recomendadas
-7. Solución inmediata
-8. Solución robusta
-9. Qué revisar en frontend/backend/configuración/pipeline
-10. Casos de prueba recomendados
-11. Riesgos de regresión
-12. Nivel de severidad: Bajo | Medio | Alto | Crítico
-13. Próxima acción recomendada`;
-
-const ERROR_CONTEXT_ANALYSIS_INSTRUCTION = `Actúa como QA Architect senior y debugging assistant especializado en frontend, backend, APIs, automatización y pipelines. Analiza el error usando el contexto del workspace proporcionado. No inventes archivos ni código no incluido. Si falta contexto, dilo explícitamente. Responde en español con:
-
-1. Resumen del error
-2. Archivo/método/variable probablemente involucrado
-3. Evidencia exacta encontrada en el error o snippets
-4. Causa raíz probable
-5. Hipótesis alternativas
-6. Validaciones para confirmar
-7. Solución inmediata
-8. Solución robusta
-9. Cambios sugeridos en código o pruebas
-10. Casos de prueba QA recomendados
-11. Riesgos de regresión
-12. Archivos adicionales que convendría revisar
-13. Severidad
-14. Próxima acción recomendada`;
 
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
@@ -100,6 +90,16 @@ function methodNotAllowed(res) {
   sendJson(res, 405, {
     error: 'Method Not Allowed'
   });
+}
+
+function matchAgentRunPath(pathname) {
+  const match = pathname.match(/^\/agents\/([^/]+)\/run$/);
+
+  if (!match) {
+    return null;
+  }
+
+  return decodeURIComponent(match[1]);
 }
 
 async function readJsonBody(req) {
@@ -151,6 +151,141 @@ function validateErrorText(errorText) {
   }
 
   return null;
+}
+
+function canRunAgent(agentProfile) {
+  return Boolean(
+    agentProfile?.execution?.enabled &&
+    agentProfile.execution.mode === 'runtime' &&
+    typeof agentProfile.buildPrompt === 'function'
+  );
+}
+
+async function handleAgentRun(req, res, agentId) {
+  const agentProfile = getAgentProfile(agentId);
+
+  if (!agentProfile) {
+    sendJson(res, 404, createAgentResponse({
+      agentId,
+      status: 'AGENT_NOT_FOUND',
+      sentToClaude: false,
+      summary: 'Agent not found.',
+      recommendations: [
+        'Verify the agentId exists in the central registry.'
+      ]
+    }));
+    return;
+  }
+
+  const body = await readJsonBody(req);
+  const validation = validateAgentRunRequest(body);
+  const execution = agentProfile.execution || {
+    enabled: false,
+    mode: 'legacy',
+    runtimeEndpoint: `/agents/${agentProfile.id}/run`,
+    legacyEndpoints: agentProfile.relatedEndpoints || []
+  };
+
+  if (!validation.valid) {
+    sendJson(res, 400, createAgentResponse({
+      agentId: agentProfile.id,
+      status: 'AGENT_INPUT_INVALID',
+      sentToClaude: false,
+      summary: validation.error,
+      data: {
+        mode: 'agent-run-validation',
+        agentName: agentProfile.name,
+        execution,
+        receivedInputKeys: validation.receivedInputKeys
+      },
+      risks: [
+        'Agent runtime requests without a normalized input object cannot be processed consistently.'
+      ],
+      recommendations: [
+        'Send the request body as { "input": {} }.'
+      ]
+    }));
+    return;
+  }
+
+  const inputSchemaValidation = validateAgentInputSchema(agentProfile, validation.input);
+  if (!inputSchemaValidation.valid) {
+    sendJson(res, 400, createAgentResponse({
+      agentId: agentProfile.id,
+      status: 'AGENT_INPUT_INVALID',
+      sentToClaude: false,
+      summary: 'Agent input does not match the declared schema.',
+      data: {
+        mode: 'agent-input-schema-validation',
+        agentName: agentProfile.name,
+        execution,
+        errors: inputSchemaValidation.errors,
+        warnings: inputSchemaValidation.warnings,
+        allowedFields: inputSchemaValidation.allowedFields,
+        receivedInputKeys: inputSchemaValidation.receivedInputKeys
+      },
+      risks: [
+        'Invalid agent input cannot be processed consistently by a shared runtime.'
+      ],
+      recommendations: [
+        'Send at least one of errorText or logText.',
+        'Use only fields declared by the agent input schema.'
+      ]
+    }));
+    return;
+  }
+
+  if (!execution.enabled) {
+    sendJson(res, 200, createAgentResponse({
+      agentId: agentProfile.id,
+      status: 'AGENT_EXECUTION_DISABLED',
+      sentToClaude: false,
+      summary: 'Agent runtime execution is disabled. Use legacy endpoints.',
+      data: {
+        mode: 'agent-run-disabled',
+        agentName: agentProfile.name,
+        execution,
+        receivedInputKeys: validation.receivedInputKeys,
+        inputWarnings: inputSchemaValidation.warnings,
+        allowedFields: inputSchemaValidation.allowedFields,
+        profile: {
+          status: agentProfile.status,
+          statusLabel: agentProfile.statusLabel,
+          description: agentProfile.description,
+          capabilities: agentProfile.capabilities,
+          outputContract: agentProfile.outputContract,
+          governance: agentProfile.governance
+        }
+      },
+      recommendations: [
+        'Use legacy endpoints until runtime execution is enabled.'
+      ]
+    }));
+    return;
+  }
+
+  if (!canRunAgent(agentProfile)) {
+    sendJson(res, 501, createAgentResponse({
+      agentId: agentProfile.id,
+      status: 'AGENT_RUNTIME_NOT_CONFIGURED',
+      sentToClaude: false,
+      summary: 'Agent execution is enabled, but no runtime implementation is configured for this agent.',
+      data: {
+        mode: 'agent-run-runtime',
+        agentName: agentProfile.name,
+        execution
+      },
+      risks: [
+        'Runtime execution cannot proceed without a buildPrompt implementation.'
+      ],
+      recommendations: [
+        'Configure the agent runtime implementation before enabling execution.'
+      ]
+    }));
+    return;
+  }
+
+  sendJson(res, 200, await runAgent(agentProfile, validation.input));
 }
 
 function normalizeSnippet(snippet) {
@@ -421,12 +556,23 @@ async function handleAnalyzeErrorContext(body, res) {
 
 async function route(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const agentRunId = matchAgentRunPath(url.pathname);
 
-  if (req.method === 'GET' && url.pathname === '/health') {
-    sendJson(res, 200, {
-      status: 'ok',
-      service: 'claude-secure-proxy'
-    });
+  if (handleDashboardRoutes({
+    req,
+    res,
+    pathname: url.pathname,
+    sendHtml
+  })) {
+    return;
+  }
+
+  if (handleHealthRoutes({
+    req,
+    res,
+    pathname: url.pathname,
+    sendJson
+  })) {
     return;
   }
 
@@ -435,8 +581,23 @@ async function route(req, res) {
     return;
   }
 
-  if (req.method === 'GET' && url.pathname === '/dashboard') {
-    sendHtml(res, 200, renderDashboard(getUsageSummary()));
+  if (handleModulesRoutes({
+    req,
+    res,
+    pathname: url.pathname,
+    sendHtml
+  })) {
+    return;
+  }
+
+  if (handleDownloadsRoutes({
+    req,
+    res,
+    pathname: url.pathname,
+    sendJson,
+    vscodeExtensionFile: VSCODE_EXTENSION_FILE,
+    vscodeExtensionDownloadName: VSCODE_EXTENSION_DOWNLOAD_NAME
+  })) {
     return;
   }
 
@@ -451,6 +612,16 @@ async function route(req, res) {
     }
 
     sendJson(res, 200, summary);
+    return;
+  }
+
+  if (agentRunId && req.method !== 'POST') {
+    methodNotAllowed(res);
+    return;
+  }
+
+  if (agentRunId && req.method === 'POST') {
+    await handleAgentRun(req, res, agentRunId);
     return;
   }
 
@@ -502,5 +673,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`claude-secure-proxy listening on http://localhost:${PORT}`);
+  console.log(`claude-secure-proxy listening on http://localhost:${PORT}/dashboard`);
 });
