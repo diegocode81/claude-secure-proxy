@@ -10,6 +10,7 @@
     "proxy:start": "bash scripts/start.sh",
     "proxy:stop": "bash scripts/stop.sh",
     "proxy:status": "bash scripts/status.sh",
+    "test": "node --test",
     "check": "node --check server.js && node --check src/server.js && node --check src/sanitizer.js && node --check src/claude.js && node --check src/env.js && node --check src/usage.js && node --check src/dashboard.js"
   },
   "engines": {
