@@ -65,13 +65,13 @@ curl -s http://127.0.0.1:3201/health
 
 | ID | Metodo | Ruta | Resultado esperado | Protege |
 |---|---|---|---|---|
-| DL-001 | `HEAD` | `/downloads/claude-secure-vscode` | `200`, `content-disposition` con `claude-secure-vscode-0.1.0.vsix`. | Instalacion manual |
-| DL-002 | `GET` | `/downloads/claude-secure-vscode` | Descarga solo el `.vsix` conocido. | Seguridad de descarga |
+| DL-001 | `HEAD` | `/downloads/secure-code-vscode` | `200`, `content-disposition` con `secure-code-vscode-0.1.0.vsix`. | Instalacion manual |
+| DL-002 | `GET` | `/downloads/secure-code-vscode` | Descarga solo el `.vsix` conocido. | Seguridad de descarga |
 
 Comando sugerido:
 
 ```bash
-curl -I http://127.0.0.1:3201/downloads/claude-secure-vscode
+curl -I http://127.0.0.1:3201/downloads/secure-code-vscode
 ```
 
 No debe existir descarga dinamica por parametro.
@@ -184,9 +184,9 @@ curl -s -X POST http://127.0.0.1:3201/agents/qa-log-analyst/run \
 
 | ID | Validacion | Resultado esperado |
 |---|---|---|
-| EXT-001 | El archivo `.vsix` existe en `claude-secure-vscode/`. | Existe el archivo esperado. |
+| EXT-001 | El archivo `.vsix` existe en `secure-code-vscode/`. | Existe el archivo esperado. |
 | EXT-002 | La pagina `/qa-log-analyst` muestra descarga de extension. | Boton o enlace visible. |
-| EXT-003 | `/downloads/claude-secure-vscode` no acepta parametro de archivo. | Solo sirve el `.vsix` conocido. |
+| EXT-003 | `/downloads/secure-code-vscode` no acepta parametro de archivo. | Solo sirve el `.vsix` conocido. |
 | EXT-004 | `/analyze-error` mantiene request legacy con `text`, `context`, `technology`. | No cambia contrato. |
 | EXT-005 | `/analyze-error-context` mantiene request legacy con `errorText`, `context`, `technology`, `workspaceContext`. | No cambia contrato. |
 

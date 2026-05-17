@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { getDashboardBudgetSettings } from '../settings/platform-settings.service.js';
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const USAGE_FILE = path.join(DATA_DIR, 'usage.json');
@@ -9,11 +10,13 @@ function getCurrentMonth() {
 }
 
 function getBudgetUsd() {
-  return Number(process.env.MONTHLY_BUDGET_USD || 80);
+  return Number(getDashboardBudgetSettings().monthlyBudgetUsd || process.env.MONTHLY_BUDGET_USD || 80);
 }
 
-function getBudgetWarningPercent() {
-  return Number(process.env.BUDGET_WARNING_PERCENT || 85);
+function getAlertThresholdUsd() {
+  const dashboardSettings = getDashboardBudgetSettings();
+  const budgetUsd = Number(dashboardSettings.monthlyBudgetUsd || process.env.MONTHLY_BUDGET_USD || 80);
+  return Number(dashboardSettings.alertThresholdUsd || budgetUsd * Number(process.env.BUDGET_WARNING_PERCENT || 85) / 100);
 }
 
 function getInputCostPer1M() {
@@ -104,6 +107,10 @@ export function readUsage() {
 export function getUsageSummary() {
   const usage = readUsage();
   const budgetUsd = getBudgetUsd();
+  const alertThresholdUsd = getAlertThresholdUsd();
+  const alertThresholdPercent = budgetUsd > 0
+    ? roundPercent((alertThresholdUsd / budgetUsd) * 100)
+    : 0;
   const usagePercent = budgetUsd > 0
     ? roundPercent((usage.estimatedCostUsd / budgetUsd) * 100)
     : 0;
@@ -111,6 +118,8 @@ export function getUsageSummary() {
   return {
     month: usage.month,
     budgetUsd,
+    alertThresholdUsd,
+    alertThresholdPercent,
     estimatedCostUsd: usage.estimatedCostUsd,
     usagePercent,
     inputTokens: usage.inputTokens,
@@ -158,5 +167,5 @@ export function isBudgetExceeded() {
 }
 
 export function isBudgetWarning(summary = getUsageSummary()) {
-  return summary.usagePercent >= getBudgetWarningPercent();
+  return Number(summary.estimatedCostUsd || 0) >= Number(summary.alertThresholdUsd || 0);
 }

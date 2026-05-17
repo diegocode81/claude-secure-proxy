@@ -31,7 +31,10 @@ export function handleDownloadsRoutes({
   vscodeExtensionFile,
   vscodeExtensionDownloadName
 }) {
-  if ((req.method === 'GET' || req.method === 'HEAD') && pathname === '/downloads/claude-secure-vscode') {
+  if (
+    (req.method === 'GET' || req.method === 'HEAD') &&
+    (pathname === '/downloads/secure-code-vscode' || pathname === '/downloads/claude-secure-vscode')
+  ) {
     sendFileDownload(req, res, vscodeExtensionFile, vscodeExtensionDownloadName, sendJson);
     return true;
   }

@@ -24,10 +24,6 @@ function getTrafficLight(usagePercent) {
   };
 }
 
-function getBudgetWarningPercent() {
-  return Number(process.env.BUDGET_WARNING_PERCENT || 85);
-}
-
 function formatUsd(value) {
   return Number(value || 0).toLocaleString('en-US', {
     style: 'currency',
@@ -44,12 +40,11 @@ function formatNumber(value) {
 export function renderDashboardView(summary) {
   const trafficLight = getTrafficLight(summary.usagePercent);
   const safePercent = Math.min(Number(summary.usagePercent || 0), 100);
-  const warningPercent = getBudgetWarningPercent();
-  const warningUsd = Number(summary.budgetUsd || 0) * warningPercent / 100;
+  const warningUsd = Number(summary.alertThresholdUsd || 0);
   const content = `
     <header class="page-header">
       <div>
-        <h1>Consumo Claude API</h1>
+        <h1>Consumo de Tokens APIs</h1>
         <p>Centro de control operativo para presupuesto, tokens y uso estimado.</p>
       </div>
       <div class="month">Mes: ${escapeHtml(summary.month)}</div>
@@ -59,7 +54,7 @@ export function renderDashboardView(summary) {
       <div class="panel">
         <div class="metric-label">Presupuesto mensual configurado</div>
         <div class="big-number">${formatUsd(summary.budgetUsd)}</div>
-        <p>Alerta desde ${warningPercent}%: ${formatUsd(warningUsd)}</p>
+        <p>Alerta desde: ${formatUsd(warningUsd)}</p>
       </div>
       <div class="panel">
         <div class="metric-label">Gasto estimado acumulado del mes</div>
@@ -86,7 +81,7 @@ export function renderDashboardView(summary) {
         <div class="metric-value">${formatNumber(summary.outputTokens)}</div>
       </div>
       <div class="panel">
-        <div class="metric-label">Requests enviados a Claude</div>
+        <div class="metric-label">Requests enviados a APIs</div>
         <div class="metric-value">${formatNumber(summary.totalRequests)}</div>
       </div>
       <div class="panel">
@@ -112,7 +107,6 @@ export function renderDashboardView(summary) {
     </section>
 
     <div class="actions">
-      <a class="button secondary" href="/usage">Ver JSON</a>
       <form method="post" action="/usage/reset">
         <button type="submit">Resetear consumo del mes</button>
       </form>

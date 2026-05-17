@@ -1,6 +1,6 @@
-# claude-secure-vscode
+# secure-code-vscode
 
-Extension local de VS Code para enviar selecciones a `claude-secure-proxy` y analizar errores con snippets relevantes del workspace.
+Extension local de VS Code para enviar selecciones a QA IA Platform y analizar errores con snippets relevantes del workspace.
 
 ## Requisito
 
@@ -17,7 +17,7 @@ La extension llama a:
 Si el proxy no esta activo, VS Code muestra:
 
 ```text
-No se pudo conectar a claude-secure-proxy. Verifica que http://localhost:3000 esté activo.
+No se pudo conectar a QA IA Platform. Verifica que http://localhost:3000 esté activo.
 ```
 
 ## Analizar seleccion
@@ -25,7 +25,7 @@ No se pudo conectar a claude-secure-proxy. Verifica que http://localhost:3000 es
 Usa el comando:
 
 ```text
-Claude Seguro: Analizar selección
+Secure Code QA: Analizar selección
 ```
 
 Tambien aparece en el menu contextual del editor cuando hay texto seleccionado.
@@ -33,7 +33,7 @@ Tambien aparece en el menu contextual del editor cuando hay texto seleccionado.
 Flujo:
 
 1. Selecciona texto en el editor.
-2. Ejecuta `Claude Seguro: Analizar selección`.
+2. Ejecuta `Secure Code QA: Analizar selección`.
 3. Selecciona el contexto:
    - `frontend`
    - `backend`
@@ -41,7 +41,7 @@ Flujo:
    - `mobile`
    - `pipeline`
    - `unknown`
-4. La extension envia el texto seleccionado a `claude-secure-proxy` con `technology: "unknown"` y `workspaceContext: []`.
+4. La extension envia el texto seleccionado a QA IA Platform con `technology: "unknown"` y `workspaceContext: []`.
 5. El proxy aplica el filtro de seguridad.
 6. VS Code abre una pestaña Markdown con el estado del filtro y la respuesta de Claude.
 
@@ -50,7 +50,7 @@ Flujo:
 Usa el comando:
 
 ```text
-Claude Seguro: Analizar error con contexto del proyecto
+Secure Code QA: Analizar error con contexto del proyecto
 ```
 
 Tambien aparece en el menu contextual del editor cuando hay texto seleccionado.
@@ -58,7 +58,7 @@ Tambien aparece en el menu contextual del editor cuando hay texto seleccionado.
 Flujo:
 
 1. Selecciona un log, error o stacktrace en el editor.
-2. Ejecuta `Claude Seguro: Analizar error con contexto del proyecto`.
+2. Ejecuta `Secure Code QA: Analizar error con contexto del proyecto`.
 3. Selecciona el contexto:
    - `frontend`
    - `backend`
@@ -173,7 +173,7 @@ Lee maximo 50 archivos candidatos y descarta archivos grandes o binarios.
 Validar sintaxis:
 
 ```bash
-cd claude-secure-vscode
+cd secure-code-vscode
 npm run check
 ```
 

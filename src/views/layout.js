@@ -139,6 +139,7 @@ export function renderLayout({ title, activePath, content }) {
     }
 
     input,
+    select,
     textarea {
       border: 1px solid #cbd5e1;
       border-radius: 6px;

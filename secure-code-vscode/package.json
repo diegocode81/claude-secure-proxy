@@ -1,9 +1,13 @@
 {
-  "name": "claude-secure-vscode",
-  "displayName": "Claude Secure VS Code",
-  "description": "Analiza selecciones y errores con contexto del proyecto usando claude-secure-proxy.",
+  "name": "secure-code-vscode",
+  "displayName": "Secure Code QA",
+  "description": "VS Code extension for QA log analysis through the QA AI Platform.",
   "version": "0.1.0",
   "publisher": "local",
+  "repository": {
+    "type": "git",
+    "url": "https://example.com/qa-ai-platform/claude-secure-proxy.git"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -13,18 +17,18 @@
   "activationEvents": [
     "onCommand:claudeSecure.analyzeSelection",
     "onCommand:claudeSecure.analyzeSelectionWithWorkspaceContext",
-    "onCommand:claude-secure-vscode.analyzeErrorWithContext"
+    "onCommand:secure-code-vscode.analyzeErrorWithContext"
   ],
   "main": "./extension.js",
   "contributes": {
     "commands": [
       {
         "command": "claudeSecure.analyzeSelection",
-        "title": "Claude Seguro: Analizar selección"
+        "title": "Secure Code QA: Analizar selección"
       },
       {
         "command": "claudeSecure.analyzeSelectionWithWorkspaceContext",
-        "title": "Claude Seguro: Analizar error con contexto del proyecto"
+        "title": "Secure Code QA: Analizar error con contexto del proyecto"
       }
     ],
     "menus": {
@@ -43,7 +47,8 @@
     }
   },
   "scripts": {
-    "check": "node --check extension.js"
+    "check": "node --check extension.js",
+    "package": "npx @vscode/vsce package"
   },
   "devDependencies": {}
 }

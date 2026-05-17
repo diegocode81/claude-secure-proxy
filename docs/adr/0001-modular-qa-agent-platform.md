@@ -198,7 +198,7 @@ Criterios mínimos:
 - `/` redirige a `/dashboard`.
 - `/dashboard` responde.
 - `/qa-log-analyst` responde.
-- `/downloads/claude-secure-vscode` sirve solo el `.vsix` conocido.
+- `/downloads/secure-code-vscode` sirve solo el `.vsix` conocido.
 - `/analyze-error` y `/analyze-error-context` mantienen contrato legacy.
 - Casos con secretos se bloquean antes de Claude.
 - `/agents/qa-log-analyst/run` mantiene `sentToClaude: false` mientras execution esté deshabilitado.

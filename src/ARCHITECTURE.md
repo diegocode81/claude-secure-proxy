@@ -15,6 +15,7 @@ src/
   llm/
   security/
   usage/
+  settings/
   dashboard/
   agents/
   views/
@@ -29,6 +30,7 @@ src/
 | `llm/` | Clientes de modelos LLM. | Puente creado. |
 | `security/` | Sanitización y controles de seguridad de entrada. | Puente creado. |
 | `usage/` | Métricas, consumo y presupuesto. | Puentes creados. |
+| `settings/` | Servicios de configuración de plataforma. | Activo. |
 | `dashboard/` | Servicio del dashboard operativo. | Puente creado. |
 | `agents/` | Perfiles, runtime común y documentación de agentes QA. | Activo. |
 | `views/` | Vistas HTML renderizadas por servidor. | Activo. |
@@ -44,6 +46,7 @@ src/
 | `src/llm/` | Sí | Cliente Claude. |
 | `src/security/` | Sí | Sanitización y controles de seguridad. |
 | `src/usage/` | Sí | Consumo, métricas y presupuesto. |
+| `src/settings/` | Sí | Configuración de plataforma, dashboard y LLM. |
 | `src/routes/` | Sí | Rutas HTTP extraídas de bajo riesgo. |
 | `src/views/` | Sí | Vistas HTML renderizadas por servidor. |
 | `docs/` | Sí | Documentación operativa y gobernanza. |
@@ -91,6 +94,18 @@ Estos archivos existen para que el código nuevo use rutas por capa y para mante
 - `src/server.js` puede seguir siendo el orquestador mientras no exista `src/routes/`.
 - No mover lógica real a nuevas carpetas sin una tarea explícita de migración.
 - Mantener endpoints legacy hasta que exista una versión nueva y probada.
+
+## Configuración de plataforma
+
+La capa `src/settings/` contiene servicios de configuración de plataforma.
+
+Esta capa:
+
+- No contiene agentes.
+- No se registra en `src/agents/registry.js`.
+- No debe llamar LLM directamente.
+- No debe exponer secretos completos.
+- Puede usar `data/platform-settings.json` como configuración local/runtime mientras no exista almacenamiento seguro de secretos.
 
 ## Agentes
 

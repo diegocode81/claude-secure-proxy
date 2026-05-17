@@ -42,6 +42,23 @@ function renderPlaceholderNote(module) {
   `;
 }
 
+function renderRelatedResources(module) {
+  if (module.id !== 'qa-log-analyst') {
+    return '';
+  }
+
+  return `
+      <div class="field">
+        <div class="metric-label">Recurso relacionado</div>
+        <p><strong>Extensión VS Code</strong></p>
+        <ul>
+          <li>Ruta: <a href="/qa-log-analyst/extension"><code>/qa-log-analyst/extension</code></a></li>
+          <li>Estado: Gestión inicial</li>
+        </ul>
+      </div>
+  `;
+}
+
 function renderModuleCard(module) {
   const typeLabel = getTypeLabel(module);
 
@@ -58,6 +75,7 @@ function renderModuleCard(module) {
         <a href="${escapeHtml(module.path)}"><code>${escapeHtml(module.path)}</code></a>
       </div>
       ${renderPlaceholderNote(module)}
+      ${renderRelatedResources(module)}
       <div class="field">
         <div class="metric-label">Capacidades principales</div>
         <ul>

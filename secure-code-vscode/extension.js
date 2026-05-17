@@ -1,17 +1,61 @@
 const vscode = require('vscode');
+const fs = require('fs');
+const path = require('path');
 
-const PROXY_BASE_URL = 'http://localhost:3000';
-const ANALYZE_ERROR_CONTEXT_URL = `${PROXY_BASE_URL}/analyze-error-context`;
-const CONTEXT_OPTIONS = ['frontend', 'backend', 'api', 'mobile', 'pipeline', 'unknown'];
-const DEFAULT_TECHNOLOGY = 'unknown';
+const DEFAULT_EXTENSION_CONFIG = {
+  proxyBaseUrl: 'http://localhost:3000',
+  defaultTechnology: 'unknown',
+  contextOptions: ['frontend', 'backend', 'api', 'mobile', 'pipeline', 'unknown'],
+  maxCandidateFiles: 50,
+  maxRelevantFiles: 10,
+  maxSnippetLines: 120,
+  maxContextChars: 60000,
+  maxFileBytes: 512 * 1024,
+  searchPattern: '**/*.{js,jsx,ts,tsx,java,cs,feature,json,yml,yaml,xml,gradle}',
+  excludePattern: '{**/.env,**/.env.*,**/*secret*,**/*credential*,**/*password*,**/docker-compose.yml,**/docker-compose.yaml,**/*.properties,**/*.local.*,**/config/**,**/configs/**,**/secrets/**,**/credentials/**,**/node_modules/**,**/dist/**,**/build/**,**/coverage/**,**/.git/**,**/.next/**,**/target/**,**/bin/**,**/obj/**,**/package-lock.json,**/pnpm-lock.yaml,**/yarn.lock}'
+};
 
-const MAX_CANDIDATE_FILES = 50;
-const MAX_RELEVANT_FILES = 10;
-const MAX_SNIPPET_LINES = 120;
-const MAX_CONTEXT_CHARS = 60000;
-const MAX_FILE_BYTES = 512 * 1024;
-const SEARCH_PATTERN = '**/*.{js,jsx,ts,tsx,java,cs,feature,json,yml,yaml,xml,gradle}';
-const EXCLUDE_PATTERN = '{**/.env,**/.env.*,**/*secret*,**/*credential*,**/*password*,**/docker-compose.yml,**/docker-compose.yaml,**/*.properties,**/*.local.*,**/config/**,**/configs/**,**/secrets/**,**/credentials/**,**/node_modules/**,**/dist/**,**/build/**,**/coverage/**,**/.git/**,**/.next/**,**/target/**,**/bin/**,**/obj/**,**/package-lock.json,**/pnpm-lock.yaml,**/yarn.lock}';
+function readExtensionConfig() {
+  const configPath = path.join(__dirname, 'extension.config.json');
+  let rawConfig = {};
+
+  try {
+    if (fs.existsSync(configPath)) {
+      rawConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    }
+  } catch {
+    rawConfig = {};
+  }
+
+  return {
+    proxyBaseUrl: typeof rawConfig.proxyBaseUrl === 'string' ? rawConfig.proxyBaseUrl : DEFAULT_EXTENSION_CONFIG.proxyBaseUrl,
+    defaultTechnology: typeof rawConfig.defaultTechnology === 'string' ? rawConfig.defaultTechnology : DEFAULT_EXTENSION_CONFIG.defaultTechnology,
+    contextOptions: Array.isArray(rawConfig.contextOptions) && rawConfig.contextOptions.every((item) => typeof item === 'string')
+      ? rawConfig.contextOptions
+      : DEFAULT_EXTENSION_CONFIG.contextOptions,
+    maxCandidateFiles: typeof rawConfig.maxCandidateFiles === 'number' ? rawConfig.maxCandidateFiles : DEFAULT_EXTENSION_CONFIG.maxCandidateFiles,
+    maxRelevantFiles: typeof rawConfig.maxRelevantFiles === 'number' ? rawConfig.maxRelevantFiles : DEFAULT_EXTENSION_CONFIG.maxRelevantFiles,
+    maxSnippetLines: typeof rawConfig.maxSnippetLines === 'number' ? rawConfig.maxSnippetLines : DEFAULT_EXTENSION_CONFIG.maxSnippetLines,
+    maxContextChars: typeof rawConfig.maxContextChars === 'number' ? rawConfig.maxContextChars : DEFAULT_EXTENSION_CONFIG.maxContextChars,
+    maxFileBytes: typeof rawConfig.maxFileBytes === 'number' ? rawConfig.maxFileBytes : DEFAULT_EXTENSION_CONFIG.maxFileBytes,
+    searchPattern: typeof rawConfig.searchPattern === 'string' ? rawConfig.searchPattern : DEFAULT_EXTENSION_CONFIG.searchPattern,
+    excludePattern: typeof rawConfig.excludePattern === 'string' ? rawConfig.excludePattern : DEFAULT_EXTENSION_CONFIG.excludePattern
+  };
+}
+
+const EXTENSION_CONFIG = readExtensionConfig();
+const PROXY_BASE_URL = EXTENSION_CONFIG.proxyBaseUrl;
+const ANALYZE_ERROR_CONTEXT_URL = `${PROXY_BASE_URL.replace(/\/+$/, '')}/analyze-error-context`;
+const CONTEXT_OPTIONS = EXTENSION_CONFIG.contextOptions;
+const DEFAULT_TECHNOLOGY = EXTENSION_CONFIG.defaultTechnology;
+
+const MAX_CANDIDATE_FILES = EXTENSION_CONFIG.maxCandidateFiles;
+const MAX_RELEVANT_FILES = EXTENSION_CONFIG.maxRelevantFiles;
+const MAX_SNIPPET_LINES = EXTENSION_CONFIG.maxSnippetLines;
+const MAX_CONTEXT_CHARS = EXTENSION_CONFIG.maxContextChars;
+const MAX_FILE_BYTES = EXTENSION_CONFIG.maxFileBytes;
+const SEARCH_PATTERN = EXTENSION_CONFIG.searchPattern;
+const EXCLUDE_PATTERN = EXTENSION_CONFIG.excludePattern;
 
 const SENSITIVE_PATH_REGEX = /(^|[/\\])(?:\.env(?:\..*)?|docker-compose\.ya?ml|package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$|(^|[/\\])(?:config|configs|secrets|credentials|node_modules|dist|build|coverage|\.git|\.next|target|bin|obj)([/\\]|$)|secret|credential|password|\.properties$|\.local\./i;
 const SENSITIVE_SNIPPET_REGEX = /\b(?:password|secret|client_secret|credentials|access_token|refresh_token)\b\s*[:=]|\bAuthorization\s*:\s*Bearer\b|BEGIN\s+(?:RSA\s+|DSA\s+|EC\s+|OPENSSH\s+|PGP\s+)?PRIVATE KEY/i;
@@ -61,7 +105,7 @@ function activate(context) {
       analyzeSelectionWithWorkspaceContext
     ),
     vscode.commands.registerCommand(
-      'claude-secure-vscode.analyzeErrorWithContext',
+      'secure-code-vscode.analyzeErrorWithContext',
       analyzeSelectionWithWorkspaceContext
     )
   );
@@ -458,7 +502,7 @@ async function postJson(url, body) {
       body: JSON.stringify(body)
     });
   } catch (error) {
-    throw Object.assign(new Error('No se pudo conectar a claude-secure-proxy.'), {
+    throw Object.assign(new Error('No se pudo conectar a QA IA Platform.'), {
       cause: error,
       code: 'PROXY_CONNECTION_FAILED'
     });
@@ -466,11 +510,11 @@ async function postJson(url, body) {
 
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    throw new Error(payload?.error || `claude-secure-proxy respondio con HTTP ${response.status}.`);
+    throw new Error(payload?.error || `QA IA Platform respondio con HTTP ${response.status}.`);
   }
 
   if (!payload || typeof payload !== 'object') {
-    throw new Error('claude-secure-proxy respondio con JSON invalido.');
+    throw new Error('QA IA Platform respondio con JSON invalido.');
   }
 
   return payload;
@@ -606,7 +650,7 @@ async function openMarkdown(content) {
 function handleProxyError(error) {
   if (error?.code === 'PROXY_CONNECTION_FAILED') {
     vscode.window.showErrorMessage(
-      'No se pudo conectar a claude-secure-proxy. Verifica que http://localhost:3000 esté activo.'
+      'No se pudo conectar a QA IA Platform. Verifica que http://localhost:3000 esté activo.'
     );
     return;
   }

@@ -16,8 +16,10 @@ import {
 } from './agents/shared/runtime/index.js';
 import { handleDashboardRoutes } from './routes/dashboard.routes.js';
 import { handleDownloadsRoutes } from './routes/downloads.routes.js';
+import { handleExtensionRoutes } from './routes/extension.routes.js';
 import { handleHealthRoutes } from './routes/health.routes.js';
 import { handleModulesRoutes } from './routes/modules.routes.js';
+import { handleSettingsRoutes } from './routes/settings.routes.js';
 import {
   getUsageSummary,
   recordBlockedRequest,
@@ -36,10 +38,10 @@ const MAX_SNIPPET_LINES = 300;
 const MAX_CONTEXT_CHARS = 60000;
 const VSCODE_EXTENSION_FILE = path.resolve(
   process.cwd(),
-  'claude-secure-vscode',
-  'claude-secure-vscode-0.1.0.vsix'
+  'secure-code-vscode',
+  'secure-code-vscode-0.1.0.vsix'
 );
-const VSCODE_EXTENSION_DOWNLOAD_NAME = 'claude-secure-vscode-0.1.0.vsix';
+const VSCODE_EXTENSION_DOWNLOAD_NAME = 'secure-code-vscode-0.1.0.vsix';
 
 const DEFAULT_ANALYZE_INSTRUCTION = [
   'Actua como un analista QA senior.',
@@ -586,6 +588,25 @@ async function route(req, res) {
     res,
     pathname: url.pathname,
     sendHtml
+  })) {
+    return;
+  }
+
+  if (await handleExtensionRoutes({
+    req,
+    res,
+    pathname: url.pathname,
+    sendJson
+  })) {
+    return;
+  }
+
+  if (await handleSettingsRoutes({
+    req,
+    res,
+    pathname: url.pathname,
+    sendHtml,
+    sendJson
   })) {
     return;
   }

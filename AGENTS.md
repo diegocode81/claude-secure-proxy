@@ -52,6 +52,7 @@ src/dashboard/
 src/llm/
 src/routes/
 src/security/
+src/settings/
 src/usage/
 src/views/
 docs/
@@ -159,6 +160,18 @@ Rutas relevantes:
 /usage
 
 El control de presupuesto y consumo debe mantenerse antes de activar agentes nuevos.
+
+Configuración de plataforma
+
+/settings administra configuración base de plataforma.
+
+No es agente.
+
+No se registra en registry.
+
+API keys no deben exponerse completas.
+
+data/platform-settings.json es runtime local y no debe entrar al commit.
 
 data/
 

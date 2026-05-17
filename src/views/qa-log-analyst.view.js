@@ -30,6 +30,14 @@ export function renderQaLogAnalystView() {
       </div>
 
       <div class="panel">
+        <h2>Extensión VS Code</h2>
+        <p>QA Log Analyst puede usarse desde Visual Studio Code mediante la extensión existente. Desde esta sección puedes acceder al módulo de gestión de la extensión.</p>
+        <div class="actions">
+          <a class="button secondary" href="/qa-log-analyst/extension">Gestionar extensión</a>
+        </div>
+      </div>
+
+      <div class="panel">
         <h2>Endpoints relacionados</h2>
         <ul>
           ${renderCodeList(profile.relatedEndpoints)}

@@ -1,0 +1,19 @@
+{
+  "proxyBaseUrl": "http://localhost:3000",
+  "defaultTechnology": "unknown",
+  "contextOptions": [
+    "frontend",
+    "backend",
+    "api",
+    "mobile",
+    "pipeline",
+    "unknown"
+  ],
+  "maxCandidateFiles": 50,
+  "maxRelevantFiles": 10,
+  "maxSnippetLines": 120,
+  "maxContextChars": 60000,
+  "maxFileBytes": 524288,
+  "searchPattern": "/*.{js,jsx,ts,tsx,java,cs,feature,json,yml,yaml,xml,gradle}",
+  "excludePattern": "{/.env,/.env.*,/secret*,/credential*,/password*,/node_modules/,/dist/,/build/,/.git/}"
+}

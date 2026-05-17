@@ -385,7 +385,7 @@ Respuesta si se bloquea:
 
 ## Extension VS Code
 
-El proyecto incluye una extension local en `claude-secure-vscode`.
+El proyecto incluye una extension local en `secure-code-vscode`.
 
 Comandos:
 
@@ -423,7 +423,7 @@ Body enviado por la extension:
 
 Para probarla en VS Code:
 
-1. Abre la carpeta `claude-secure-vscode` en VS Code.
+1. Abre la carpeta `secure-code-vscode` en VS Code.
 2. Presiona `F5` para lanzar Extension Development Host.
 3. En otra ventana/proyecto, selecciona un error.
 4. Ejecuta el comando desde la paleta de comandos.
