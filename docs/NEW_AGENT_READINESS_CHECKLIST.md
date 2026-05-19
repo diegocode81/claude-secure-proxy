@@ -73,8 +73,8 @@ src/agents/<agent-id>/
 | Campos desconocidos definidos como permitidos o bloqueados. | Sí | Pendiente |
 | Prompt controlado por código. | Sí | Pendiente |
 | No se leen Markdown dinámicamente para ejecutar prompts. | Sí | Pendiente |
-| Sanitización obligatoria antes de Claude. | Sí | Pendiente |
-| Control de presupuesto obligatorio antes de Claude. | Sí | Pendiente |
+| Sanitización obligatoria antes de LLM. | Sí | Pendiente |
+| Control de presupuesto obligatorio antes de LLM. | Sí | Pendiente |
 | Respuesta normalizada con contrato estándar. | Sí | Pendiente |
 | Tests unitarios mínimos agregados. | Sí | Pendiente |
 | Smoke tests actualizados. | Sí | Pendiente |

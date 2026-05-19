@@ -73,12 +73,12 @@ export const exampleProfile = {
 
 ## Reglas de arquitectura
 
-- Ningún agente debe llamar a Claude sin pasar por sanitización.
+- Ningún agente debe llamar a LLM sin pasar por sanitización.
 - Ningún agente debe saltarse el control de presupuesto.
 - No se deben leer dinámicamente archivos Markdown desde el servidor para ejecutar prompts.
 - `prompt.md` documenta el prompt oficial, pero el runtime debe importar código explícito desde módulos JavaScript.
 - No cambiar contratos existentes sin versionar endpoints nuevos.
-- No duplicar lógica de sanitización, presupuesto o cliente Claude dentro de un agente.
+- No duplicar lógica de sanitización, presupuesto o cliente LLM dentro de un agente.
 - La vista visual de un agente debe usar `profile.js` como fuente estructurada.
 - La navegación principal debe tomar módulos y agentes desde `src/agents/registry.js`; no hardcodear módulos dentro de las vistas.
 - La creación de agentes desde UI está fuera del alcance actual.
@@ -99,7 +99,7 @@ validar entrada
   -> construir prompt controlado
   -> sanitizar
   -> controlar presupuesto
-  -> llamar Claude
+  -> llamar LLM
   -> registrar uso
   -> normalizar respuesta
 ```

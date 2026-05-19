@@ -76,7 +76,7 @@ Debe documentar:
 - estados,
 - errores,
 - compatibilidad,
-- ejemplos seguros que no llamen Claude real en smoke tests.
+- ejemplos seguros que no llamen LLM real en smoke tests.
 
 ## `README.md`
 
@@ -90,25 +90,25 @@ Debe explicar:
 
 ## Runtime
 
-Un agente solo puede ejecutar Claude si cumple:
+Un agente solo puede ejecutar LLM si cumple:
 
 ```txt
 validación de entrada
   -> sanitización
   -> control de presupuesto
   -> prompt controlado
-  -> llamada Claude
+  -> llamada LLM
   -> registro de uso
   -> respuesta normalizada
 ```
 
 No está permitido:
 
-- llamar Claude desde vistas,
+- llamar LLM desde vistas,
 - aceptar prompts libres desde frontend,
 - saltarse `src/security/`,
 - saltarse `src/usage/`,
-- duplicar cliente Claude,
+- duplicar cliente LLM,
 - modificar endpoints legacy sin versión o plan de migración.
 
 ## Registro

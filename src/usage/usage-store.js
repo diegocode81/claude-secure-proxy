@@ -138,7 +138,7 @@ export function recordBlockedRequest() {
   return getUsageSummary();
 }
 
-export function recordClaudeUsage({ status, inputTokens, outputTokens }) {
+export function recordLlmUsage({ status, inputTokens, outputTokens }) {
   const usage = readUsage();
 
   usage.inputTokens += Number(inputTokens || 0);
@@ -155,6 +155,8 @@ export function recordClaudeUsage({ status, inputTokens, outputTokens }) {
   writeUsage(usage);
   return getUsageSummary();
 }
+
+export const recordClaudeUsage = recordLlmUsage;
 
 export function resetUsage() {
   const empty = createEmptyUsage();

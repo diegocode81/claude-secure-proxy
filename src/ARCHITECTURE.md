@@ -43,7 +43,7 @@ src/
 | `src/agents/` | Sí | Agentes QA formales, registro central y runtime compartido. |
 | `src/config/` | Sí | Carga de configuración/env. |
 | `src/dashboard/` | Sí | Servicio del dashboard operativo. |
-| `src/llm/` | Sí | Cliente Claude. |
+| `src/llm/` | Sí | Cliente LLM actual. |
 | `src/security/` | Sí | Sanitización y controles de seguridad. |
 | `src/usage/` | Sí | Consumo, métricas y presupuesto. |
 | `src/settings/` | Sí | Configuración de plataforma, dashboard y LLM. |
@@ -57,7 +57,7 @@ src/
 | Archivo | Clasificación actual | Detalle | Destino futuro |
 |---|---|---|---|
 | `src/server.js` | Entrypoint/orquestador interno | Contiene el servidor HTTP y conserva endpoints legacy/críticos. Delega rutas simples a `routes/`. | Separar gradualmente hacia `routes/`, dejando `server.js` como bootstrap. |
-| `src/claude.js` | Wrapper de compatibilidad | Reexporta el cliente Claude desde la capa `llm/`. | Mantener temporalmente hasta eliminar imports legacy. |
+| `src/claude.js` | Wrapper de compatibilidad | Reexporta aliases legacy hacia la capa `llm/`. | Mantener temporalmente hasta eliminar imports legacy. |
 | `src/env.js` | Wrapper de compatibilidad | Reexporta el loader de `.env` desde la capa `config/`. | Mantener temporalmente hasta eliminar imports legacy. |
 | `src/sanitizer.js` | Wrapper de compatibilidad | Reexporta la capa real de sanitización. | Mantener temporalmente hasta eliminar imports legacy. |
 | `src/usage.js` | Wrapper de compatibilidad | Reexporta la capa real de uso y presupuesto. | Mantener temporalmente hasta eliminar imports legacy. |
@@ -70,7 +70,7 @@ Estos archivos existen para que el código nuevo use rutas por capa y para mante
 | Archivo | Reexporta desde |
 |---|---|
 | `src/env.js` | `./config/env.js` |
-| `src/claude.js` | `./llm/claude.client.js` |
+| `src/claude.js` | `./llm/llm.client.js` y `./llm/claude.client.js` |
 | `src/sanitizer.js` | `./security/sanitizer.js` |
 | `src/usage.js` | `./usage/usage-store.js` |
 | `src/usage/budget-service.js` | `./usage-store.js` |
@@ -82,7 +82,7 @@ Estos archivos existen para que el código nuevo use rutas por capa y para mante
 | Wrapper | Estado | Decisión | Motivo |
 |---|---|---|---|
 | `src/env.js` | Wrapper usado por compatibilidad y por `npm run check` | Mantenido | La lógica real ya vive en `src/config/env.js`; eliminarlo podría romper imports legacy externos o scripts actuales. |
-| `src/claude.js` | Wrapper usado por compatibilidad y por `npm run check` | Mantenido | La lógica real ya vive en `src/llm/claude.client.js`; se conserva para no romper imports legacy. |
+| `src/claude.js` | Wrapper usado por compatibilidad y por `npm run check` | Mantenido | La fachada genérica vive en `src/llm/llm.client.js`; se conserva para no romper imports legacy. |
 | `src/sanitizer.js` | Wrapper usado por compatibilidad y por `npm run check` | Mantenido | La lógica real ya vive en `src/security/sanitizer.js`; se conserva como bridge seguro. |
 | `src/usage.js` | Wrapper usado por compatibilidad y por `npm run check` | Mantenido | La lógica real ya vive en `src/usage/usage-store.js`; se conserva para contratos internos antiguos. |
 | `src/dashboard.js` | Wrapper usado por compatibilidad y por `npm run check` | Mantenido | La capa real ya vive en `src/dashboard/dashboard.service.js`; se conserva para imports legacy. |
@@ -94,6 +94,14 @@ Estos archivos existen para que el código nuevo use rutas por capa y para mante
 - `src/server.js` puede seguir siendo el orquestador mientras no exista `src/routes/`.
 - No mover lógica real a nuevas carpetas sin una tarea explícita de migración.
 - Mantener endpoints legacy hasta que exista una versión nueva y probada.
+
+## Capa LLM
+
+`src/llm/llm.client.js` es la fachada genérica para llamadas al LLM. Código nuevo debe importar `callLlm` desde esa capa.
+
+`src/llm/claude.client.js` se conserva como cliente provider-specific para Anthropic/Claude mientras ese sea un proveedor soportado.
+
+No crear nuevos nombres internos acoplados a Claude para conceptos genéricos. Usar Claude o Anthropic solo cuando se hable del proveedor real, variables de entorno o compatibilidad legacy.
 
 ## Configuración de plataforma
 
@@ -107,6 +115,14 @@ Esta capa:
 - No debe exponer secretos completos.
 - Puede usar `data/platform-settings.json` como configuración local/runtime mientras no exista almacenamiento seguro de secretos.
 
+La configuración de proxy es gobierno de plataforma:
+
+- No es agente.
+- No debe exponer secretos.
+- No debe saltar sanitización.
+- No debe permitir desactivar bloqueo de secretos desde UI.
+- No debe llamar LLM desde pantallas administrativas.
+
 ## Agentes
 
 El primer módulo formal es:
@@ -119,7 +135,7 @@ Estado:
 
 - Funcionalidad real actual: endpoints legacy `/analyze-error` y `/analyze-error-context`.
 - Runtime genérico: preparado en `/agents/qa-log-analyst/run`, pero con `execution.enabled = false`.
-- Claude no se llama desde el runtime genérico mientras el flag esté deshabilitado.
+- El LLM no se llama desde el runtime genérico mientras el flag esté deshabilitado.
 
 Documentos obligatorios de gobierno para agentes:
 
@@ -151,8 +167,8 @@ Antes de permitir creación o configuración de agentes desde el frontend se req
 - Mecanismo de rollback.
 - Estado de publicación del agente: `draft`, `review`, `active`, `disabled`.
 - Separación entre agentes definidos por código y agentes configurables desde UI.
-- Reglas para evitar que un usuario cree un agente que llame Claude sin sanitización.
-- Reglas para evitar que un usuario cree un agente que llame Claude sin control de presupuesto.
+- Reglas para evitar que un usuario cree un agente que llame LLM sin sanitización.
+- Reglas para evitar que un usuario cree un agente que llame LLM sin control de presupuesto.
 
 ### Regla actual
 

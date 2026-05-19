@@ -1,8 +1,9 @@
-import { callClaude } from '../../../llm/claude.client.js';
+import { callLlm } from '../../../llm/llm.client.js';
+import { normalizeAgentLlmSettings } from '../llm-settings.js';
 import { sanitizeText } from '../../../security/sanitizer.js';
 import {
   recordBlockedRequest,
-  recordClaudeUsage
+  recordLlmUsage
 } from '../../../usage/usage-store.js';
 import { isBudgetExceeded } from '../../../usage/budget-service.js';
 import { buildPromptWithAgent, normalizeAgentResponse } from './prompt.js';
@@ -10,11 +11,12 @@ import { AGENT_RUNTIME_STATUS } from './status.js';
 import { validateWithAgent } from './validation.js';
 
 export async function runAgent(agent, input, services = {}) {
-  const claudeClient = services.callClaude || callClaude;
+  const llmClient = services.callLlm || services.callClaude || callLlm;
   const sanitizer = services.sanitizeText || sanitizeText;
   const budgetExceeded = services.isBudgetExceeded || isBudgetExceeded;
   const recordBlocked = services.recordBlockedRequest || recordBlockedRequest;
-  const recordUsage = services.recordClaudeUsage || recordClaudeUsage;
+  const recordUsage = services.recordLlmUsage || services.recordClaudeUsage || recordLlmUsage;
+  const llmSettings = normalizeAgentLlmSettings(agent.llmSettings || {});
 
   const validatedInput = validateWithAgent(agent, input);
   const prompt = buildPromptWithAgent(agent, validatedInput);
@@ -27,6 +29,7 @@ export async function runAgent(agent, input, services = {}) {
       status: AGENT_RUNTIME_STATUS.BLOCKED,
       risk: sanitized.risk,
       findings: sanitized.findings,
+      sentToLLM: false,
       sentToClaude: false,
       sanitizedText: sanitized.sanitizedText
     };
@@ -36,22 +39,25 @@ export async function runAgent(agent, input, services = {}) {
     return {
       agentId: agent.id,
       status: AGENT_RUNTIME_STATUS.BUDGET_EXCEEDED,
+      sentToLLM: false,
       sentToClaude: false,
-      message: 'Monthly Claude API budget exceeded.'
+      message: 'Monthly LLM API budget exceeded.'
     };
   }
 
-  const textForClaude = sanitized.status === AGENT_RUNTIME_STATUS.SANITIZED
+  const textForLlm = sanitized.status === AGENT_RUNTIME_STATUS.SANITIZED
     ? sanitized.sanitizedText
     : prompt.text;
-  const claudeResult = await claudeClient({
+  const llmResult = await llmClient({
     instruction: prompt.instruction,
-    text: textForClaude
+    text: textForLlm,
+    maxTokens: llmSettings.maxOutputTokens,
+    temperature: llmSettings.temperature
   });
   const usageSummary = recordUsage({
     status: sanitized.status,
-    inputTokens: claudeResult.usage.inputTokens,
-    outputTokens: claudeResult.usage.outputTokens
+    inputTokens: llmResult.usage.inputTokens,
+    outputTokens: llmResult.usage.outputTokens
   });
 
   return {
@@ -59,9 +65,10 @@ export async function runAgent(agent, input, services = {}) {
     status: sanitized.status,
     risk: sanitized.risk,
     findings: sanitized.findings,
+    sentToLLM: true,
     sentToClaude: true,
     usage: usageSummary,
-    ...normalizeAgentResponse(agent, claudeResult, {
+    ...normalizeAgentResponse(agent, llmResult, {
       input: validatedInput,
       prompt,
       sanitized

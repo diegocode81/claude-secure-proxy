@@ -1,11 +1,14 @@
 const ANTHROPIC_VERSION = '2023-06-01';
 
-export async function callClaude({ instruction, text }) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  const model = process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-latest';
-  const maxTokens = Number(process.env.MAX_TOKENS || 1800);
+export async function callClaude({ instruction, text, apiKey, model, maxTokens, temperature } = {}) {
+  const effectiveApiKey = apiKey || process.env.ANTHROPIC_API_KEY;
+  const effectiveModel = model || process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-latest';
+  const effectiveMaxTokens = Number(maxTokens || process.env.MAX_TOKENS || 1800);
+  const effectiveTemperature = Number.isFinite(Number(temperature))
+    ? Math.min(1, Math.max(0, Number(temperature)))
+    : undefined;
 
-  if (!apiKey) {
+  if (!effectiveApiKey) {
     throw new Error('ANTHROPIC_API_KEY no esta configurada.');
   }
 
@@ -13,12 +16,13 @@ export async function callClaude({ instruction, text }) {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'x-api-key': apiKey,
+      'x-api-key': effectiveApiKey,
       'anthropic-version': ANTHROPIC_VERSION
     },
     body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
+      model: effectiveModel,
+      max_tokens: effectiveMaxTokens,
+      ...(effectiveTemperature === undefined ? {} : { temperature: effectiveTemperature }),
       messages: [
         {
           role: 'user',
@@ -32,7 +36,7 @@ export async function callClaude({ instruction, text }) {
 
   if (!response.ok) {
     const detail = payload?.error?.message || response.statusText;
-    throw new Error(`Claude API error ${response.status}: ${detail}`);
+    throw new Error(`LLM API error ${response.status}: ${detail}`);
   }
 
   const textResponse = payload.content

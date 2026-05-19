@@ -3,7 +3,7 @@ export const qaLogAnalystProfile = {
   name: 'QA Log Analyst',
   status: 'active',
   statusLabel: 'Activo',
-  description: 'Analiza errores, logs, stacktraces y contexto técnico usando Claude.',
+  description: 'Analiza errores, logs, stacktraces y contexto técnico usando LLM.',
   usage: 'Este módulo ya funciona desde la extensión de VS Code. La extensión toma la selección del editor, puede reunir snippets relevantes del workspace y envía el contexto al proxy local.',
   download: {
     label: 'Descargar extensión VS Code',
@@ -19,13 +19,22 @@ export const qaLogAnalystProfile = {
     '/analyze-error-context'
   ],
   execution: {
-    enabled: false,
-    mode: 'legacy',
+    enabled: true,
+    mode: 'legacy-runtime-enabled',
     runtimeEndpoint: '/agents/qa-log-analyst/run',
     legacyEndpoints: [
       '/analyze-error',
       '/analyze-error-context'
     ]
+  },
+  llmSettings: {
+    responseDetailLevel: 'standard',
+    maxOutputTokens: 1500,
+    temperature: 0.2,
+    budgetPolicy: {
+      enforceMonthlyBudget: true,
+      rejectIfEstimatedCostExceedsRemainingBudget: true
+    }
   },
   inputContract: {
     requiredAnyOf: ['errorText', 'logText'],
@@ -51,7 +60,7 @@ export const qaLogAnalystProfile = {
     'Preguntas abiertas'
   ],
   governance: [
-    'La página es informativa y no llama directamente a Claude',
+    'La página es informativa y no llama directamente al LLM',
     'Las llamadas reales pasan por sanitización',
     'Las llamadas reales pasan por control de presupuesto',
     'El dashboard sigue siendo el centro de control de tokens y costo',

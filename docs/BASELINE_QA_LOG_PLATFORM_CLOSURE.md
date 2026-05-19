@@ -43,7 +43,7 @@ QA Log Analyst está registrado en src/agents/registry.js.
 QA Log Analyst conserva ejecución real deshabilitada desde el runtime común.
 QA Log Analyst mantiene execution.enabled = false.
 QA Log Analyst mantiene mode = legacy.
-El endpoint /agents/qa-log-analyst/run no llama Claude.
+El endpoint /agents/qa-log-analyst/run no llama LLM.
 El endpoint /agents/qa-log-analyst/run responde sentToClaude: false.
 Los endpoints legacy siguen siendo la vía funcional actual:
 /analyze-error
@@ -62,8 +62,8 @@ Todo agente nuevo debe tener readiness-checklist.md.
 Todo agente nuevo debe registrarse en src/agents/registry.js.
 Todo agente nuevo debe iniciar con execution.enabled = false.
 No se permite activar un agente en el mismo cambio donde se crea.
-No se permite llamar Claude sin sanitización.
-No se permite llamar Claude sin control de presupuesto.
+No se permite llamar LLM sin sanitización.
+No se permite llamar LLM sin control de presupuesto.
 No se permite crear agentes desde UI en el estado actual de la plataforma.
 Estado de arquitectura
 

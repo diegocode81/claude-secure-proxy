@@ -45,8 +45,8 @@ Debe cumplirse:
 - `docs/AGENT_GOVERNANCE.md` define estructura mínima por agente.
 - `docs/AGENT_GOVERNANCE.md` exige registro en `src/agents/registry.js`.
 - `docs/AGENT_GOVERNANCE.md` indica que todo agente nuevo inicia con `execution.enabled = false`.
-- `docs/AGENT_GOVERNANCE.md` prohíbe llamar Claude sin sanitización.
-- `docs/AGENT_GOVERNANCE.md` prohíbe llamar Claude sin control de presupuesto.
+- `docs/AGENT_GOVERNANCE.md` prohíbe llamar LLM sin sanitización.
+- `docs/AGENT_GOVERNANCE.md` prohíbe llamar LLM sin control de presupuesto.
 - `docs/AGENT_GOVERNANCE.md` indica que la creación desde UI no está habilitada actualmente.
 
 ## Estado requerido de plantilla de agentes
@@ -75,9 +75,9 @@ Debe cumplirse:
 - `src/ARCHITECTURE.md` existe.
 - `src/ARCHITECTURE.md` describe la plataforma modular.
 - `src/ARCHITECTURE.md` diferencia módulos visuales, agentes y runtime.
-- `src/ARCHITECTURE.md` indica que Claude es el motor LLM central.
-- `src/ARCHITECTURE.md` indica que ninguna llamada a Claude debe saltarse sanitización.
-- `src/ARCHITECTURE.md` indica que ninguna llamada a Claude debe saltarse control de presupuesto.
+- `src/ARCHITECTURE.md` indica que LLM es el motor LLM central.
+- `src/ARCHITECTURE.md` indica que ninguna llamada a LLM debe saltarse sanitización.
+- `src/ARCHITECTURE.md` indica que ninguna llamada a LLM debe saltarse control de presupuesto.
 - `src/ARCHITECTURE.md` indica que el dashboard es el centro de control de tokens, costo y uso.
 - `src/ARCHITECTURE.md` indica que la creación de agentes desde UI es visión futura y no funcionalidad actual.
 
@@ -120,7 +120,7 @@ Antes de crear nuevos agentes debe cumplirse:
 - QA Log Analyst está registrado en `src/agents/registry.js`.
 - QA Log Analyst sigue en modo legacy.
 - QA Log Analyst tiene `execution.enabled = false`.
-- QA Log Analyst no llama Claude desde `/agents/qa-log-analyst/run`.
+- QA Log Analyst no llama LLM desde `/agents/qa-log-analyst/run`.
 - `/agents/qa-log-analyst/run` responde `sentToClaude: false`.
 - Los endpoints legacy siguen siendo la vía productiva:
   - `/analyze-error`
@@ -148,7 +148,7 @@ Debe cumplirse:
 - El runtime valida contrato de entrada por agente.
 - El runtime bloquea campos no declarados cuando el contrato lo exige.
 - El runtime responde con contrato estándar.
-- El runtime no llama Claude si `execution.enabled = false`.
+- El runtime no llama LLM si `execution.enabled = false`.
 - El runtime informa `sentToClaude: false` cuando la ejecución está deshabilitada.
 - El runtime no debe ser duplicado por agente.
 
@@ -160,7 +160,7 @@ Debe cumplirse:
 - Existe endpoint `/sanitize`.
 - `/sanitize` bloquea contenido crítico.
 - `/sanitize` detecta passwords, secrets o credenciales explícitas.
-- El contenido bloqueado no debe enviarse a Claude.
+- El contenido bloqueado no debe enviarse a LLM.
 - Ningún agente futuro puede saltarse sanitización.
 
 ## Estado requerido de presupuesto y uso
@@ -171,7 +171,7 @@ Debe cumplirse:
 - Existe endpoint `/usage`.
 - El dashboard muestra consumo.
 - El dashboard es el centro de control de tokens y costo.
-- Ningún agente futuro puede llamar Claude sin control de presupuesto.
+- Ningún agente futuro puede llamar LLM sin control de presupuesto.
 - No se permiten rutas alternativas para saltarse usage/budget.
 
 ## Estado requerido de dashboard
@@ -277,7 +277,7 @@ No se debe crear un nuevo agente si ocurre cualquiera de estas condiciones:
 - `/modules` no responde.
 - `/usage` no responde.
 - `/sanitize` no bloquea contenido crítico.
-- `/agents/qa-log-analyst/run` llama Claude.
+- `/agents/qa-log-analyst/run` llama LLM.
 - `/agents/qa-log-analyst/run` no responde `sentToClaude: false`.
 - QA Log Analyst está roto.
 - `src/agents/registry.js` tiene agentes incompletos.

@@ -1,7 +1,8 @@
 import {
   getPlatformSettings,
   saveDashboardSettings,
-  saveLlmSettings
+  saveLlmSettings,
+  saveProxySettings
 } from '../settings/platform-settings.service.js';
 import { renderSettingsView } from '../views/settings.view.js';
 
@@ -86,14 +87,33 @@ export async function handleSettingsRoutes({
     return true;
   }
 
+  if (req.method === 'POST' && pathname === '/settings/proxy') {
+    try {
+      const body = await readJsonBody(req);
+      const result = saveProxySettings(body);
+      const statusCode = result.status === 'SETTINGS_VALIDATION_ERROR' ? 400 : 200;
+      sendJson(res, statusCode, result);
+    } catch (error) {
+      sendJson(res, error.statusCode || 400, {
+        status: 'SETTINGS_VALIDATION_ERROR',
+        sentToLLM: false,
+        sentToClaude: false,
+        errors: [error.message]
+      });
+    }
+    return true;
+  }
+
   if ([
     '/settings',
     '/settings/config',
     '/settings/dashboard',
-    '/settings/llm'
+    '/settings/llm',
+    '/settings/proxy'
   ].includes(pathname)) {
     sendJson(res, 405, {
       error: 'Method Not Allowed',
+      sentToLLM: false,
       sentToClaude: false
     });
     return true;

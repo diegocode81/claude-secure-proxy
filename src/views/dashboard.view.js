@@ -114,7 +114,7 @@ export function renderDashboardView(summary) {
   `;
 
   return renderLayout({
-    title: 'Claude Secure Proxy - Dashboard',
+    title: 'QA IA Platform - Dashboard',
     activePath: '/dashboard',
     content
   });

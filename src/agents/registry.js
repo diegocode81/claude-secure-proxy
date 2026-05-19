@@ -1,4 +1,5 @@
 import { qaLogAnalystProfile } from './qa-log-analyst/profile.js';
+import { agentProfile as qaPruebasProfile } from './qa-pruebas/profile.js';
 
 export const AGENT_MODULE_FILE_STANDARD = [
   'profile.js',
@@ -24,8 +25,27 @@ export const AGENT_PROFILE_REQUIRED_FIELDS = [
 ];
 
 export const agentRegistry = [
-  qaLogAnalystProfile
+  qaLogAnalystProfile,
+  qaPruebasProfile
 ];
+
+const runtimeAgentRegistry = [];
+
+function getAllAgentProfiles() {
+  return [
+    ...agentRegistry,
+    ...runtimeAgentRegistry
+  ].filter(Boolean);
+}
+
+export function registerRuntimeAgentProfile(profile) {
+  if (!profile?.id || getAllAgentProfiles().some((item) => item.id === profile.id)) {
+    return false;
+  }
+
+  runtimeAgentRegistry.push(profile);
+  return true;
+}
 
 export const platformModuleRegistry = [
   {
@@ -52,41 +72,40 @@ export const platformModuleRegistry = [
     id: 'agent-builder',
     type: 'visual-placeholder',
     name: 'Crear agentes',
-    status: 'disabled',
-    statusLabel: 'No habilitado',
-    description: 'Prepara la futura creación gobernada de agentes QA desde la plataforma. No crea agentes todavía.',
+    status: 'active',
+    statusLabel: 'Creación gobernada habilitada',
+    description: 'Crea estructura base de agentes QA desde la plataforma con ejecución deshabilitada y revisión humana pendiente.',
     navigation: {
       label: 'Crear agentes',
       path: '/agent-builder',
       order: 20
     },
     capabilities: [
-      'Mostrar requisitos futuros para crear agentes',
-      'Documentar gobierno de agentes',
-      'Separar visión futura de funcionalidad activa',
-      'Evitar creación dinámica prematura'
+      'Crear estructura estándar de agente',
+      'Validar contratos y campos obligatorios',
+      'Registrar agente en el registry',
+      'Mantener runtime deshabilitado por defecto'
     ],
     governance: [
       'No es un agente registrado',
-      'No crea agentes todavía',
-      'No edita agentes',
       'No activa agentes',
       'No elimina agentes',
-      'No llama a Claude'
+      'No permite sobrescribir QA Log Analyst',
+      'No llama a LLM'
     ]
   }
 ];
 
 export function listAgentProfiles() {
-  return agentRegistry;
+  return getAllAgentProfiles();
 }
 
 export function getAgentProfile(agentId) {
-  return agentRegistry.find((profile) => profile.id === agentId) || null;
+  return getAllAgentProfiles().find((profile) => profile.id === agentId) || null;
 }
 
 export function listAgentNavigationItems() {
-  return agentRegistry
+  return getAllAgentProfiles()
     .filter((profile) => profile.navigation)
     .map((profile) => ({
       label: profile.navigation.label || profile.name,
@@ -115,7 +134,7 @@ export function listPlatformNavigationItems() {
 }
 
 export function listModuleCatalogItems() {
-  const activeAgents = agentRegistry.map((profile) => ({
+  const activeAgents = getAllAgentProfiles().map((profile) => ({
     id: profile.id,
     type: 'agent',
     name: profile.name,
@@ -124,6 +143,9 @@ export function listModuleCatalogItems() {
     description: profile.description,
     path: profile.navigation?.path || '',
     capabilities: profile.capabilities,
+    execution: profile.execution,
+    inputContract: profile.inputContract,
+    outputSchema: profile.outputSchema,
     governance: profile.governance
   }));
 

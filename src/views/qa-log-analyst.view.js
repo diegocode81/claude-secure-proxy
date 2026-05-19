@@ -2,11 +2,30 @@ import { renderLayout } from './layout.js';
 import { qaLogAnalystProfile } from '../agents/qa-log-analyst/profile.js';
 
 function renderTextList(items) {
-  return items.map((item) => `<li>${item}</li>`).join('');
+  return items.map((item) => `<li>${String(item).replaceAll('Claude', 'LLM')}</li>`).join('');
 }
 
 function renderCodeList(items) {
   return items.map((item) => `<li><code>${item}</code></li>`).join('');
+}
+
+function renderLlmSettings(profile) {
+  const settings = profile.llmSettings || {};
+  const budgetPolicy = settings.budgetPolicy || {};
+
+  return `
+    <div class="panel">
+      <h2>Configuración de respuesta LLM</h2>
+      <p class="form-note">Esta configuración controla el tamaño y comportamiento de las respuestas del LLM para este agente.</p>
+      <ul>
+        <li>Nivel de detalle: <code>${settings.responseDetailLevel || 'standard'}</code></li>
+        <li>Máximo tokens respuesta: <code>${Number(settings.maxOutputTokens || 1500)}</code></li>
+        <li>Temperatura: <code>${Number(settings.temperature ?? 0.2)}</code></li>
+        <li>Presupuesto mensual aplicado: <code>${budgetPolicy.enforceMonthlyBudget === false ? 'no' : 'sí'}</code></li>
+        <li>Bloqueo si excede presupuesto: <code>${budgetPolicy.rejectIfEstimatedCostExceedsRemainingBudget === false ? 'no' : 'sí'}</code></li>
+      </ul>
+    </div>
+  `;
 }
 
 export function renderQaLogAnalystView() {
@@ -15,7 +34,7 @@ export function renderQaLogAnalystView() {
     <header class="page-header">
       <div>
         <h1>${profile.name}</h1>
-        <p>${profile.description}</p>
+        <p>${profile.description.replaceAll('Claude', 'LLM')}</p>
       </div>
       <div class="actions">
         <a class="button" href="${profile.download.path}">${profile.download.label}</a>
@@ -51,7 +70,7 @@ export function renderQaLogAnalystView() {
           <li>Abrir un proyecto en VS Code.</li>
           <li>Seleccionar un error, log o stacktrace.</li>
           <li>Ejecutar el comando del QA Log Analyst desde VS Code.</li>
-          <li>Revisar el análisis generado por Claude.</li>
+          <li>Revisar el análisis generado por el LLM configurado.</li>
         </ul>
       </div>
 
@@ -82,11 +101,13 @@ export function renderQaLogAnalystView() {
           ${renderTextList(profile.governance)}
         </ul>
       </div>
+
+      ${renderLlmSettings(profile)}
     </section>
   `;
 
   return renderLayout({
-    title: 'Claude Secure Proxy - QA Log Analyst',
+    title: 'QA IA Platform - QA Log Analyst',
     activePath: '/qa-log-analyst',
     content
   });

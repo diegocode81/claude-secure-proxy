@@ -12,7 +12,7 @@ Secure Code QA
 
 ## Naming neutral de LLM
 
-La extensión usa un nombre neutral porque la plataforma podrá soportar distintos proveedores LLM en el futuro. Aunque actualmente la plataforma puede usar Claude como motor LLM, la extensión no debe depender en su nombre de un proveedor específico.
+La extensión usa un nombre neutral porque la plataforma podrá soportar distintos proveedores LLM en el futuro. Aunque actualmente la plataforma puede usar un proveedor LLM concreto, la extensión no debe depender en su nombre de un proveedor específico.
 
 ## Estado actual
 
@@ -72,7 +72,7 @@ Cambiar comandos de VS Code desde UI.
 
 Cambiar endpoints desde UI.
 
-Llamar Claude desde la pantalla de gestión.
+Llamar LLM desde la pantalla de gestión.
 
 Activar runtime desde la pantalla de gestión.
 
@@ -82,7 +82,7 @@ La generación se realiza desde /qa-log-analyst/extension.
 
 Usa scripts definidos en secure-code-vscode/package.json.
 
-No llama Claude.
+No llama LLM.
 
 No edita agentes.
 
@@ -110,7 +110,7 @@ npx @vscode/vsce package
 
 La plataforma usa el endpoint POST /qa-log-analyst/extension/generate para invocar este script de forma controlada desde el backend.
 
-La generación no llama Claude, no modifica agentes, no activa runtime y no publica la extensión.
+La generación no llama LLM, no modifica agentes, no activa runtime y no publica la extensión.
 
 ## Configuración editable de extensión
 
@@ -152,7 +152,7 @@ GET /qa-log-analyst/extension/config
 
 POST /qa-log-analyst/extension/config
 
-Estos endpoints no llaman Claude, no modifican agentes, no modifican registry y no activan runtime.
+Estos endpoints no llaman LLM, no modifican agentes, no modifican registry y no activan runtime.
 
 ## Guía de variables configurables
 
@@ -209,7 +209,7 @@ No saltarse sanitización.
 
 No saltarse control de presupuesto.
 
-No llamar Claude desde pantallas administrativas.
+No llamar LLM desde pantallas administrativas.
 
 ## Criterio de readiness futuro
 

@@ -1,4 +1,5 @@
 import { renderLayout } from './layout.js';
+import { renderLoadingIndicator } from './shared/loading.view.js';
 
 const downloadPath = '/downloads/secure-code-vscode';
 
@@ -18,8 +19,13 @@ export function renderQaLogAnalystExtensionView() {
         <a class="button" href="${downloadPath}">Descargar extensión VS Code</a>
         <button type="button" id="generate-extension">Generar extensión VS Code</button>
       </div>
+      ${renderLoadingIndicator({
+        id: 'extension-generate-loading',
+        message: 'Generando extensión VS Code...',
+        detail: 'La plataforma está generando el artefacto VSIX. Esto puede tardar unos segundos.'
+      })}
       <div class="field">
-        <p>Esta pantalla solo descarga o regenera el artefacto VSIX de QA Log Analyst. No edita código, no crea agentes, no activa runtime y no llama Claude.</p>
+        <p>Esta pantalla solo descarga o regenera el artefacto VSIX de QA Log Analyst. No edita código, no crea agentes, no activa runtime y no llama LLM.</p>
       </div>
     </section>
 
@@ -122,6 +128,11 @@ export function renderQaLogAnalystExtensionView() {
       <div class="actions">
         <button type="button" id="save-extension-config">Guardar configuración</button>
       </div>
+      ${renderLoadingIndicator({
+        id: 'extension-config-loading',
+        message: 'Guardando configuración...',
+        detail: 'La plataforma está guardando la configuración de la extensión. Esto puede tardar unos segundos.'
+      })}
       <div class="field">
         <p>Las reglas sensibles de seguridad no son editables desde esta pantalla.</p>
       </div>
@@ -149,6 +160,7 @@ export function renderQaLogAnalystExtensionView() {
       const resultPanel = document.getElementById('generation-result-panel');
       const resultNode = document.getElementById('extension-generation-result');
       const configResultNode = document.getElementById('extension-config-result');
+      function getLoadingApi() { return window.QAIAPlatform || {}; }
       const numberFields = [
         'maxCandidateFiles',
         'maxRelevantFiles',
@@ -226,7 +238,8 @@ export function renderQaLogAnalystExtensionView() {
       }
 
       async function saveExtensionConfig() {
-        saveConfigButton.disabled = true;
+        getLoadingApi().setButtonLoading?.(saveConfigButton, true, 'Guardando...');
+        getLoadingApi().showLoading?.('extension-config-loading', 'Guardando configuración...', 'La plataforma está guardando la configuración de la extensión. Esto puede tardar unos segundos.');
         configResultNode.textContent = 'Guardando...';
         try {
           const response = await fetch(configUrl, {
@@ -237,33 +250,34 @@ export function renderQaLogAnalystExtensionView() {
             body: JSON.stringify(readConfigForm())
           });
           const result = await response.json();
-          configResultNode.textContent = JSON.stringify(result, null, 2);
+          configResultNode.textContent = (result.refresh?.message ? result.refresh.message + '\\n\\n' : '') + JSON.stringify(result, null, 2);
           if (response.ok && result.config) {
             renderConfig(result.config);
           }
         } catch (error) {
           configResultNode.textContent = 'Error controlado: ' + error.message;
         } finally {
-          saveConfigButton.disabled = false;
+          getLoadingApi().hideLoading?.('extension-config-loading');
+          getLoadingApi().setButtonLoading?.(saveConfigButton, false);
         }
       }
 
       async function generateExtension() {
-        generateButton.disabled = true;
-        generateButton.textContent = 'Generando...';
+        getLoadingApi().setButtonLoading?.(generateButton, true, 'Generando...');
+        getLoadingApi().showLoading?.('extension-generate-loading', 'Generando extensión VS Code...', 'La plataforma está generando el artefacto VSIX. Esto puede tardar unos segundos.');
         resultPanel.hidden = false;
         resultNode.textContent = 'Cargando...';
 
         try {
           const response = await fetch(generateUrl, { method: 'POST' });
           const result = await response.json();
-          resultNode.textContent = JSON.stringify(result, null, 2);
+          resultNode.textContent = (result.refresh?.message ? result.refresh.message + '\\n\\n' : '') + JSON.stringify(result, null, 2);
           await loadExtensionInfo();
         } catch (error) {
           resultNode.textContent = 'Error controlado: ' + error.message;
         } finally {
-          generateButton.disabled = false;
-          generateButton.textContent = 'Generar extensión VS Code';
+          getLoadingApi().hideLoading?.('extension-generate-loading');
+          getLoadingApi().setButtonLoading?.(generateButton, false);
         }
       }
 
@@ -275,7 +289,7 @@ export function renderQaLogAnalystExtensionView() {
   `;
 
   return renderLayout({
-    title: 'Claude Secure Proxy - Extensión VS Code QA Log Analyst',
+    title: 'QA IA Platform - Extensión VS Code QA Log Analyst',
     activePath: '/qa-log-analyst',
     content
   });

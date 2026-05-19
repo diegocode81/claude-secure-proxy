@@ -1,6 +1,6 @@
 # claude-secure-proxy
 
-Proxy seguro para analizar texto con Claude despues de aplicar reglas de sanitizacion. Incluye endpoints para healthcheck, sanitizacion, analisis general y analisis QA especializado de logs, errores, stacktraces, codigo y pipelines.
+Proxy seguro para analizar texto con LLM despues de aplicar reglas de sanitizacion. Incluye endpoints para healthcheck, sanitizacion, analisis general y analisis QA especializado de logs, errores, stacktraces, codigo y pipelines.
 
 ## Requisitos
 
@@ -26,8 +26,8 @@ PORT=3000
 
 Variables principales:
 
-- `ANTHROPIC_API_KEY`: API key usada para llamar a Claude.
-- `CLAUDE_MODEL`: modelo de Claude usado por el proxy.
+- `ANTHROPIC_API_KEY`: API key usada para llamar a LLM.
+- `CLAUDE_MODEL`: modelo de LLM usado por el proxy.
 - `MAX_TOKENS`: maximo de tokens de salida permitido por respuesta.
 - `MONTHLY_BUDGET_USD`: presupuesto mensual estimado en USD.
 - `BUDGET_WARNING_PERCENT`: porcentaje desde el que se agrega alerta de presupuesto.
@@ -109,7 +109,7 @@ Abre el dashboard local en:
 http://localhost:3000/dashboard
 ```
 
-Esta pagina permite monitorear el consumo estimado de Claude API sin entrar al panel de Anthropic. El proxy acumula metricas locales cada vez que `/analyze`, `/analyze-error` o `/analyze-error-context` hacen una llamada real a Claude.
+Esta pagina permite monitorear el consumo estimado de LLM API sin entrar al panel de Anthropic. El proxy acumula metricas locales cada vez que `/analyze`, `/analyze-error` o `/analyze-error-context` hacen una llamada real a LLM.
 
 El dashboard muestra:
 
@@ -117,7 +117,7 @@ El dashboard muestra:
 - Gasto estimado acumulado del mes.
 - Porcentaje usado.
 - Tokens de entrada y salida acumulados.
-- Requests enviados a Claude.
+- Requests enviados a LLM.
 - Requests bloqueados por seguridad.
 - Requests sanitizados y permitidos.
 - Semaforo visual de presupuesto.
@@ -160,19 +160,19 @@ Cuando el gasto llega al porcentaje configurado en `BUDGET_WARNING_PERCENT`, `/a
 }
 ```
 
-La llamada a Claude sigue permitida mientras el consumo sea menor al 100% del presupuesto. El warning solo avisa que ya estas en zona de riesgo de gasto.
+La llamada a LLM sigue permitida mientras el consumo sea menor al 100% del presupuesto. El warning solo avisa que ya estas en zona de riesgo de gasto.
 
-Cuando el gasto llega al 100% o mas, se bloquean nuevas llamadas a Claude:
+Cuando el gasto llega al 100% o mas, se bloquean nuevas llamadas a LLM:
 
 ```json
 {
   "status": "BUDGET_EXCEEDED",
   "sentToClaude": false,
-  "message": "Monthly Claude API budget exceeded."
+  "message": "Monthly LLM API budget exceeded."
 }
 ```
 
-Este bloqueo evita seguir acumulando consumo desde el proxy. Los requests bloqueados por presupuesto no se envian a Claude.
+Este bloqueo evita seguir acumulando consumo desde el proxy. Los requests bloqueados por presupuesto no se envian a LLM.
 
 ## Uso JSON
 
@@ -283,9 +283,9 @@ Body:
 }
 ```
 
-Antes de llamar a Claude, el endpoint aplica `sanitizeText(text)`:
+Antes de llamar a LLM, el endpoint aplica `sanitizeText(text)`:
 
-- `BLOCKED`: no llama a Claude.
+- `BLOCKED`: no llama a LLM.
 - `SANITIZED`: envia `sanitizedText`.
 - `ALLOWED`: envia el `text` original.
 
@@ -313,7 +313,7 @@ Antes de llamar a Claude, el endpoint aplica `sanitizeText(text)`:
   "risk": "HIGH",
   "findings": [],
   "sentToClaude": false,
-  "message": "El contenido contiene datos sensibles críticos y no fue enviado a Claude.",
+  "message": "El contenido contiene datos sensibles críticos y no fue enviado a LLM.",
   "sanitizedText": "..."
 }
 ```
@@ -347,8 +347,8 @@ Reglas del endpoint:
 - Se aceptan maximo 10 archivos en `workspaceContext`.
 - Cada `snippet` se limita a 300 lineas.
 - El prompt combinado entre `errorText` y `workspaceContext` se limita a 60.000 caracteres.
-- Antes de llamar a Claude, el prompt combinado pasa por `sanitizeText`.
-- Si el resultado es `BLOCKED`, no se llama a Claude.
+- Antes de llamar a LLM, el prompt combinado pasa por `sanitizeText`.
+- Si el resultado es `BLOCKED`, no se llama a LLM.
 - Si el resultado es `SANITIZED`, se envia `sanitizedText`.
 - Si el resultado es `ALLOWED`, se envia el prompt combinado original.
 - No se guarda `errorText`, `workspaceContext`, snippets ni respuestas en `data/usage.json`.
@@ -378,7 +378,7 @@ Respuesta si se bloquea:
   "risk": "HIGH",
   "findings": [],
   "sentToClaude": false,
-  "message": "El contenido contiene datos sensibles críticos y no fue enviado a Claude.",
+  "message": "El contenido contiene datos sensibles críticos y no fue enviado a LLM.",
   "sanitizedText": "..."
 }
 ```
@@ -390,8 +390,8 @@ El proyecto incluye una extension local en `secure-code-vscode`.
 Comandos:
 
 ```text
-Claude Seguro: Analizar selección
-Claude Seguro: Analizar error con contexto del proyecto
+LLM Seguro: Analizar selección
+LLM Seguro: Analizar error con contexto del proyecto
 ```
 
 La extension:
@@ -399,7 +399,7 @@ La extension:
 - Lee el texto seleccionado en el editor activo.
 - Pide solo el contexto del error: `frontend`, `backend`, `api`, `mobile`, `pipeline` o `unknown`.
 - Asigna automaticamente `technology: "unknown"`.
-- Para `Claude Seguro: Analizar error con contexto del proyecto`, extrae nombres de archivo, simbolos, metodos, variables y clases desde patrones como `at metodo archivo.ts:48`, `at Clase.metodo archivo.ts:112`, `reading 'customerId'`, `reading "customerId"` y `archivo.ts:linea`.
+- Para `LLM Seguro: Analizar error con contexto del proyecto`, extrae nombres de archivo, simbolos, metodos, variables y clases desde patrones como `at metodo archivo.ts:48`, `at Clase.metodo archivo.ts:112`, `reading 'customerId'`, `reading "customerId"` y `archivo.ts:linea`.
 - Si el error menciona archivos concretos como `customer.service.ts` o `loan.controller.ts`, primero busca esos nombres directamente con `vscode.workspace.findFiles("**/nombre-archivo")`.
 - Si necesita mas contexto, busca por contenido en archivos permitidos: `js`, `jsx`, `ts`, `tsx`, `java`, `cs`, `feature`, `json`, `yml`, `yaml`, `xml` y `gradle`.
 - Excluye completamente archivos y carpetas sensibles: `.env`, `.env.*`, nombres con `secret`, `credential` o `password`, `docker-compose.yml`, `docker-compose.yaml`, `*.properties`, `*.local.*`, `config`, `configs`, `secrets`, `credentials`, `node_modules`, `dist`, `build`, `coverage`, `.git`, `.next`, `target`, `bin`, `obj` y lockfiles.

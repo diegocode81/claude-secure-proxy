@@ -15,6 +15,24 @@ La pestaña Dashboard permite configurar:
 
 Estos valores preparan el gobierno de consumo, tokens y costos de la plataforma.
 
+## Proxy
+
+La pestaña Proxy permite configurar:
+
+- Base URL pública.
+- Puerto.
+- Orígenes permitidos.
+- Límites de request.
+- Límites de contexto.
+
+También muestra como protecciones activas:
+
+- Sanitización.
+- Bloqueo de secretos.
+- Control de presupuesto.
+
+Estas protecciones son de solo lectura y no se pueden desactivar desde UI.
+
 ## LLM
 
 La pestaña LLM permite registrar:
@@ -29,9 +47,9 @@ La API key nunca se devuelve completa al frontend. Las respuestas solo muestran 
 
 ## Soporte multi-LLM
 
-Esta configuración prepara soporte futuro multi-LLM para proveedores como Claude, Gemini, DeepSeek, OpenAI u otros.
+Esta configuración prepara soporte futuro multi-LLM para proveedores como LLM actual, Gemini, DeepSeek, OpenAI u otros.
 
-La lógica actual de llamadas a Claude no se cambia en esta tarea.
+La lógica actual de llamadas al LLM no se cambia en esta tarea.
 
 ## Seguridad
 

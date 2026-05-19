@@ -2,10 +2,35 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { qaLogAnalystProfile } from '../../src/agents/qa-log-analyst/profile.js';
 import { createAgentResponse } from '../../src/agents/shared/runtime/agent-response.js';
+import { buildPromptWithAgent } from '../../src/agents/shared/runtime/prompt.js';
 import {
   validateAgentInputSchema,
   validateAgentRunRequest
 } from '../../src/agents/shared/runtime/validation.js';
+
+const textModeAgentProfile = {
+  id: 'qa-dynamic-text',
+  name: 'QA Dynamic Text',
+  description: 'Agente dinámico de texto para pruebas.',
+  execution: {
+    enabled: true,
+    mode: 'runtime-enabled'
+  },
+  interaction: {
+    inputMode: 'text',
+    acceptedInputTypes: ['text'],
+    outputMode: 'screen'
+  },
+  inputContract: {
+    required: ['contenido'],
+    requiredAnyOf: [['criteriosAceptacion', 'contextoUso']],
+    optional: ['audienciaObjetivo'],
+    disallowUnknownFields: true
+  },
+  outputSchema: {
+    fields: ['summary', 'data', 'risks', 'recommendations', 'openQuestions']
+  }
+};
 
 function validateRunBody(body) {
   const baseValidation = validateAgentRunRequest(body);
@@ -118,4 +143,43 @@ test('standard disabled runtime response keeps sentToClaude false', () => {
   assert.equal(response.rawModelText, '');
   assert.deepEqual(response.risks, []);
   assert.deepEqual(response.data.inputWarnings, []);
+});
+
+test('dynamic text agent accepts input.text even when legacy contract is inconsistent', () => {
+  const result = validateAgentInputSchema(textModeAgentProfile, {
+    text: 'Texto de prueba'
+  });
+
+  assert.equal(result.valid, true);
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.allowedFields, ['text', 'context']);
+  assert.deepEqual(result.receivedInputKeys, ['text']);
+});
+
+test('dynamic text agent rejects missing text with a clear message', () => {
+  const result = validateAgentInputSchema(textModeAgentProfile, {});
+
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.includes('Ingresa un texto para que el agente pueda analizarlo.'));
+});
+
+test('dynamic text agent rejects unknown fields without leaking advanced contract errors', () => {
+  const result = validateAgentInputSchema(textModeAgentProfile, {
+    foo: 'bar'
+  });
+
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.includes('El campo "foo" no está permitido para este agente.'));
+  assert.ok(result.errors.includes('Ingresa un texto para que el agente pueda analizarlo.'));
+  assert.equal(result.errors.some((error) => error.includes('criteriosAceptacion')), false);
+  assert.equal(result.errors.some((error) => error.includes('contextoUso')), false);
+});
+
+test('generic runtime prompt for text mode uses input.text as main content', () => {
+  const prompt = buildPromptWithAgent(textModeAgentProfile, {
+    text: 'Texto de prueba'
+  });
+
+  assert.equal(prompt.text, 'Texto de prueba');
+  assert.match(prompt.instruction, /QA Dynamic Text/);
 });

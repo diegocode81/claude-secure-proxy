@@ -10,7 +10,7 @@ La creación de agentes desde UI está fuera del alcance actual. Todo agente deb
 |---|---|
 | `agentId` | `<agent-id-en-kebab-case>` |
 | Nombre | `<Nombre del agente>` |
-| Estado inicial | `draft` |
+| Estado inicial | `draft` generado automáticamente |
 | Runtime inicial | `execution.enabled = false` |
 | Tipo | `<agent | visual-placeholder>` |
 | Responsable | `<persona/equipo>` |
@@ -58,7 +58,13 @@ export const agentProfile = {
   navigation: {
     label: '<Agent Name>',
     path: '/<agent-id>',
-    order: 100
+    order: '<asignado automáticamente>'
+  },
+  io: {
+    inputMode: 'text',
+    outputMode: 'screen',
+    responsePreset: 'qa_standard',
+    outputFields: ['summary', 'data', 'risks', 'recommendations', 'openQuestions']
   },
   relatedEndpoints: [],
   execution: {
@@ -80,12 +86,29 @@ export const agentProfile = {
   outputContract: [],
   governance: [
     'El agente inicia deshabilitado',
-    'No debe llamar Claude sin sanitización',
-    'No debe llamar Claude sin control de presupuesto',
+    'No debe llamar LLM sin sanitización',
+    'No debe llamar LLM sin control de presupuesto',
     'No debe aceptar prompts libres desde frontend'
   ]
 };
 ```
+
+`inputContract` y `outputSchema` son contratos técnicos internos. La UI no debe mostrarlos como campos editables para usuarios QA funcionales. El backend los genera automáticamente desde `io`:
+
+- `io.inputMode`: `text`, `file` o `text_and_file`.
+- `io.outputMode`: `screen`, `download` o `screen_and_download`.
+- `io.responsePreset`: `qa_standard`, `qa_acceptance_and_scenarios`, `executive_report`, `technical_analysis` o `custom`.
+- `io.outputFields`: campos funcionales esperados en la respuesta. Si `responsePreset` no es `custom`, se resuelven automáticamente desde el preset.
+
+`userInstructions` o `interaction.instructions` se genera automáticamente desde `io.inputMode`:
+
+- `text`: “Ingresa la información que el agente debe analizar.”
+- `file`: “Sube un archivo permitido para que el agente lo analice.”
+- `text_and_file`: “Ingresa instrucciones y, si aplica, sube un archivo permitido para complementar el análisis.”
+
+Los agentes deben definir campos esperados de salida mediante `io.outputFields` o `outputSchema.fields`. El runtime transforma esos campos en instrucciones documentales para el LLM.
+
+La respuesta visible estándar debe ser `llmResponse` en Markdown limpio, lista para copiar y pegar. `claudeResponse` queda solo como fallback legacy. No se debe devolver JSON como salida principal para usuarios funcionales.
 
 Todo agente nuevo debe iniciar con `execution.enabled = false`.
 
@@ -128,7 +151,7 @@ Debe documentar:
 - campos requeridos,
 - campos opcionales,
 - política de campos desconocidos,
-- ejemplos seguros que no llamen Claude real.
+- ejemplos seguros que no llamen LLM real.
 
 ## `README.md`
 
@@ -167,6 +190,8 @@ Reglas:
 
 ## Gobernanza
 
+`governance` se genera automáticamente desde la plataforma usando reglas internas estándar. No es editable desde la UI de creación ni edición de agentes.
+
 Antes de activar un agente:
 
 - `execution.enabled` debe iniciar en `false`.
@@ -177,10 +202,35 @@ Antes de activar un agente:
 - Debe existir skill documentado.
 - Debe existir smoke test.
 - Debe existir plan de rollback.
-- Debe pasar por sanitización antes de Claude.
-- Debe pasar por control de presupuesto antes de Claude.
+- Debe pasar por sanitización antes de LLM.
+- Debe pasar por control de presupuesto antes de LLM.
+
+## Configuración de respuesta LLM
+
+Todo agente debe definir `llmSettings` o usar los defaults seguros del runtime:
+
+```js
+llmSettings: {
+  responseDetailLevel: 'standard',
+  maxOutputTokens: 1500,
+  temperature: 0.2,
+  budgetPolicy: {
+    enforceMonthlyBudget: true,
+    rejectIfEstimatedCostExceedsRemainingBudget: true
+  }
+}
+```
+
+Reglas:
+
+- `responseDetailLevel`: `brief`, `standard`, `detailed` o `extensive`.
+- `maxOutputTokens`: mínimo 300, máximo 8000.
+- `temperature`: mínimo 0, máximo 1. Para QA se recomienda baja.
+- `budgetPolicy` debe permanecer activo por defecto.
 
 ## Checklist de Preparación
+
+`readiness-checklist.md` se genera automáticamente desde backend con un checklist estándar. No se solicita al usuario durante la creación.
 
 - [ ] Propósito QA definido.
 - [ ] Casos de uso definidos.
@@ -206,8 +256,8 @@ Antes de activar un agente:
 - No crear agentes dinámicos desde UI.
 - No crear endpoints de agente sin contrato.
 - No activar runtime sin aprobación.
-- No llamar Claude sin sanitización.
-- No llamar Claude sin control de presupuesto.
+- No llamar LLM sin sanitización.
+- No llamar LLM sin control de presupuesto.
 - No modificar endpoints legacy sin plan de migración.
 
 ## Estados permitidos

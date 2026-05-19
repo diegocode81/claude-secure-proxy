@@ -14,7 +14,7 @@ El objetivo es proteger:
 
 - No crear nuevos agentes si esta matriz no esta en verde.
 - No cambiar contratos de request/response sin actualizar esta matriz.
-- No ejecutar pruebas que llamen Claude real salvo que la tarea lo pida explicitamente.
+- No ejecutar pruebas que llamen LLM real salvo que la tarea lo pida explicitamente.
 - Para pruebas con servidor, usar un puerto temporal cuando sea posible, por ejemplo `PORT=3201`.
 - El inicio del sistema debe seguir siendo `/dashboard`.
 - El runtime generico de `qa-log-analyst` debe mantener `sentToClaude: false` mientras `execution.enabled` sea `false`.
@@ -122,12 +122,12 @@ Estos endpoints son criticos porque la extension VS Code depende de ellos.
 |---|---|---|---|---|---|
 | LOG-001 | `GET` | `/analyze-error` | N/A | `405`. | Contrato HTTP |
 | LOG-002 | `POST` | `/analyze-error` | `{ "text": "" }` | `400`, error de validacion. | Validacion legacy |
-| LOG-003 | `POST` | `/analyze-error` | Texto con secreto critico | `200`, `status: "BLOCKED"`, `sentToClaude: false`. | Seguridad antes de Claude |
+| LOG-003 | `POST` | `/analyze-error` | Texto con secreto critico | `200`, `status: "BLOCKED"`, `sentToClaude: false`. | Seguridad antes de LLM |
 | LOG-004 | `POST` | `/analyze-error-context` | `{ "errorText": "" }` | `400`, error de validacion. | Validacion context |
 | LOG-005 | `POST` | `/analyze-error-context` | `workspaceContext` que no sea array | `400`. | Contrato extension |
 | LOG-006 | `POST` | `/analyze-error-context` | Texto con secreto critico | `200`, `status: "BLOCKED"`, `sentToClaude: false`. | Seguridad con contexto |
 
-Comandos sin llamada real a Claude:
+Comandos sin llamada real a LLM:
 
 ```bash
 curl -i http://127.0.0.1:3201/analyze-error
@@ -149,11 +149,11 @@ curl -s -X POST http://127.0.0.1:3201/analyze-error-context \
   -d '{"errorText":"TypeError","workspaceContext":"invalid"}'
 ```
 
-No usar datos validos no sensibles para estos endpoints en smoke tests automaticos locales, porque podrian llamar Claude si hay API key y presupuesto disponible.
+No usar datos validos no sensibles para estos endpoints en smoke tests automaticos locales, porque podrian llamar LLM si hay API key y presupuesto disponible.
 
 ## Runtime Experimental de Agentes
 
-Mientras `qa-log-analyst.execution.enabled` sea `false`, el runtime generico no debe llamar Claude.
+Mientras `qa-log-analyst.execution.enabled` sea `false`, el runtime generico no debe llamar LLM.
 
 | ID | Metodo | Ruta | Body | Resultado esperado | Protege |
 |---|---|---|---|---|---|
@@ -200,7 +200,7 @@ Un refactor se considera apto para continuar solo si:
 - Las rutas visuales principales responden.
 - `/` redirige a `/dashboard`.
 - Los endpoints legacy de QA Log no cambiaron contrato.
-- Los casos con secretos siguen bloqueados antes de Claude.
+- Los casos con secretos siguen bloqueados antes de LLM.
 - El runtime generico mantiene `sentToClaude: false` cuando esta deshabilitado.
 - No se agregaron dependencias sin justificacion explicita.
 - No se crearon agentes nuevos sin completar el checklist de preparación.

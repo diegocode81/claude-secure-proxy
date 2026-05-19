@@ -1,4 +1,4 @@
-# ADR 0001: Plataforma QA Modular con Agentes Gobernados por Claude
+# ADR 0001: Plataforma QA Modular con Agentes Gobernados por LLM
 
 ## Estado
 
@@ -10,14 +10,14 @@ Aceptado.
 
 ## Contexto
 
-`claude-secure-proxy` nació como un proxy local seguro para enviar contenido sanitizado a Claude y controlar consumo de tokens/costo. El proyecto ya tiene:
+`claude-secure-proxy` nació como un proxy local seguro para enviar contenido sanitizado a LLM y controlar consumo de tokens/costo. El proyecto ya tiene:
 
 - Dashboard operativo en `/dashboard`.
 - QA Log Analyst funcional desde la extensión VS Code.
 - Endpoints legacy usados por la extensión:
   - `POST /analyze-error`
   - `POST /analyze-error-context`
-- Sanitización antes de enviar datos a Claude.
+- Sanitización antes de enviar datos a LLM.
 - Control local de uso y presupuesto.
 - Runtime común experimental para agentes:
   - `POST /agents/:agentId/run`
@@ -25,15 +25,15 @@ Aceptado.
 - Primer módulo formal en `src/agents/qa-log-analyst/`.
 - Rutas visuales e informativas parcialmente extraídas a `src/routes/`.
 
-El objetivo de producto es evolucionar hacia una plataforma QA asistida por IA con módulos especializados, manteniendo a Claude como cerebro común y evitando que cada módulo implemente lógica aislada, prompts libres o llamadas directas no gobernadas.
+El objetivo de producto es evolucionar hacia una plataforma QA asistida por IA con módulos especializados, manteniendo a LLM como cerebro común y evitando que cada módulo implemente lógica aislada, prompts libres o llamadas directas no gobernadas.
 
 ## Decisión
 
 Adoptamos una arquitectura modular de plataforma QA basada en agentes, con estas reglas:
 
-1. Claude será el proveedor LLM central de la plataforma.
-2. Ningún módulo QA debe llamar Claude directamente desde frontend o vistas.
-3. Todo flujo real hacia Claude debe pasar por:
+1. LLM será el proveedor LLM central de la plataforma.
+2. Ningún módulo QA debe llamar LLM directamente desde frontend o vistas.
+3. Todo flujo real hacia LLM debe pasar por:
    - validación de entrada,
    - sanitización,
    - control de presupuesto,
@@ -75,7 +75,7 @@ Responsabilidades:
 | Capa | Responsabilidad |
 |---|---|
 | `config/` | Carga y acceso a configuración/env. |
-| `llm/` | Cliente Claude y futuros clientes LLM si se requieren. |
+| `llm/` | Cliente LLM y futuros clientes LLM si se requieren. |
 | `security/` | Sanitización y controles de seguridad de entrada. |
 | `usage/` | Métricas, consumo y presupuesto. |
 | `dashboard/` | Servicio del dashboard operativo. |
@@ -111,7 +111,7 @@ Modo actual:
   - `execution.mode = "legacy"`
   - `sentToClaude = false`
 
-El runtime genérico puede validar contrato de entrada, pero no debe llamar Claude mientras `execution.enabled` sea `false`.
+El runtime genérico puede validar contrato de entrada, pero no debe llamar LLM mientras `execution.enabled` sea `false`.
 
 ## Reglas Para Nuevos Agentes
 
@@ -183,7 +183,7 @@ Rutas legacy protegidas:
 - No implementar login.
 - No crear base de datos.
 - No instalar dependencias nuevas para esta arquitectura.
-- No cambiar el modelo de Claude dentro de esta decisión.
+- No cambiar el modelo de LLM dentro de esta decisión.
 
 ## Validación Obligatoria
 
@@ -200,7 +200,7 @@ Criterios mínimos:
 - `/qa-log-analyst` responde.
 - `/downloads/secure-code-vscode` sirve solo el `.vsix` conocido.
 - `/analyze-error` y `/analyze-error-context` mantienen contrato legacy.
-- Casos con secretos se bloquean antes de Claude.
+- Casos con secretos se bloquean antes de LLM.
 - `/agents/qa-log-analyst/run` mantiene `sentToClaude: false` mientras execution esté deshabilitado.
 
 ## Evolución Esperada

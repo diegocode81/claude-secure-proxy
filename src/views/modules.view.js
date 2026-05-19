@@ -6,7 +6,11 @@ function renderList(items, emptyText) {
     return `<li>${escapeHtml(emptyText)}</li>`;
   }
 
-  return items.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
+  return items.map((item) => `<li>${escapeHtml(String(item).replaceAll('Claude', 'LLM'))}</li>`).join('');
+}
+
+function renderVisibleText(value) {
+  return escapeHtml(String(value || '').replaceAll('Claude', 'LLM'));
 }
 
 function getStatusClass(status) {
@@ -37,7 +41,7 @@ function renderPlaceholderNote(module) {
   return `
       <div class="field">
         <div class="metric-label">Nota</div>
-        <p>No es un agente registrado. No crea agentes todavía.</p>
+        <p>No es un agente registrado. Crea estructura base gobernada con ejecución deshabilitada.</p>
       </div>
   `;
 }
@@ -69,7 +73,7 @@ function renderModuleCard(module) {
         <span class="metric-label">${escapeHtml(typeLabel)}</span>
       </div>
       <h2>${escapeHtml(module.name)}</h2>
-      <p>${escapeHtml(module.description)}</p>
+      <p>${renderVisibleText(module.description)}</p>
       <div class="field">
         <div class="metric-label">Ruta visual</div>
         <a href="${escapeHtml(module.path)}"><code>${escapeHtml(module.path)}</code></a>
@@ -120,17 +124,17 @@ export function renderModulesView() {
 
     <section class="panel">
       <h2>Gestión futura de agentes</h2>
-      <p>Esta página actúa como catálogo de gobierno. La creación o configuración de agentes desde UI está fuera del alcance actual.</p>
+      <p>Esta página actúa como catálogo de gobierno. La creación desde UI está habilitada solo para generar estructura base con ejecución deshabilitada.</p>
       <div class="field">
         <div class="metric-label">Regla actual</div>
-        <p>Todos los agentes deben definirse por código, mantener documentación formal y registrarse explícitamente en <code>src/agents/registry.js</code>.</p>
+        <p>Todos los agentes deben mantener documentación formal, registrarse explícitamente en <code>src/agents/registry.js</code> e iniciar con <code>execution.enabled = false</code>.</p>
       </div>
       <div class="field">
         <div class="metric-label">Antes de habilitar creación desde UI se requerirá</div>
         <ul>
           <li>Schema formal de agente y validación estricta de perfil, entrada y salida.</li>
           <li>Control de permisos, revisión humana, auditoría, versionamiento de prompts y rollback.</li>
-          <li>Reglas que impidan llamadas a Claude sin sanitización o control de presupuesto.</li>
+          <li>Reglas que impidan llamadas al LLM sin sanitización o control de presupuesto.</li>
           <li>Estados de publicación: draft, review, active, disabled.</li>
         </ul>
       </div>
@@ -142,7 +146,7 @@ export function renderModulesView() {
   `;
 
   return renderLayout({
-    title: 'Claude Secure Proxy - Módulos QA',
+    title: 'QA IA Platform - Módulos QA',
     activePath: '/modules',
     content
   });

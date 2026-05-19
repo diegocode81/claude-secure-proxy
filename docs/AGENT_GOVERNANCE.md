@@ -10,7 +10,7 @@ La plataforma debe crecer de forma ordenada, segura y trazable. Ningún agente n
 
 - QA Log Analyst es el único agente funcional formalizado.
 - QA Log Analyst sigue en modo legacy.
-- El runtime genérico existe, pero no debe ejecutar Claude para QA Log Analyst mientras `execution.enabled` sea `false`.
+- El runtime genérico existe, pero no debe ejecutar LLM para QA Log Analyst mientras `execution.enabled` sea `false`.
 - La creación dinámica de agentes desde UI está fuera del alcance actual.
 - Los agentes deben definirse por código versionado.
 
@@ -23,9 +23,9 @@ La plataforma debe crecer de forma ordenada, segura y trazable. Ningún agente n
 5. Todo agente debe tener prompt oficial versionable.
 6. Todo agente debe tener skill documentado.
 7. Todo agente debe estar registrado en el registry central.
-8. Todo agente debe pasar por sanitización antes de enviar datos a Claude.
-9. Todo agente debe pasar por control de presupuesto antes de enviar datos a Claude.
-10. Ningún endpoint debe llamar Claude directamente fuera del runtime común.
+8. Todo agente debe pasar por sanitización antes de enviar datos a LLM.
+9. Todo agente debe pasar por control de presupuesto antes de enviar datos a LLM.
+10. Ningún endpoint debe llamar LLM directamente fuera del runtime común.
 11. Ningún agente debe activarse sin smoke tests.
 12. Ningún agente debe activarse sin plan de rollback.
 
@@ -63,16 +63,16 @@ src/agents/registry.js
 
 Los archivos Markdown son documentación oficial. No se deben leer dinámicamente desde el servidor para ejecutar prompts.
 
-## Flujo Permitido Hacia Claude
+## Flujo Permitido Hacia LLM
 
-Todo agente que ejecute Claude debe pasar por este flujo:
+Todo agente que ejecute LLM debe pasar por este flujo:
 
 ```txt
 validar entrada
   -> sanitizar
   -> controlar presupuesto
   -> construir prompt controlado
-  -> llamar Claude
+  -> llamar LLM
   -> registrar uso
   -> normalizar respuesta
 ```
@@ -82,8 +82,8 @@ No está permitido:
 - aceptar prompts libres desde frontend,
 - duplicar sanitización dentro de cada agente,
 - duplicar lógica de presupuesto dentro de cada agente,
-- llamar Claude directamente desde una vista HTML,
-- llamar Claude directamente desde un endpoint nuevo sin pasar por runtime o servicio aprobado,
+- llamar LLM directamente desde una vista HTML,
+- llamar LLM directamente desde un endpoint nuevo sin pasar por runtime o servicio aprobado,
 - activar runtime real sin tests y smoke tests actualizados.
 
 ## Regla global de activación inicial
@@ -123,8 +123,8 @@ Antes de habilitar creación o configuración desde UI se requerirá:
 - mecanismo de rollback,
 - estados `draft`, `review`, `active`, `disabled`,
 - separación entre agentes definidos por código y agentes configurables desde UI,
-- reglas que impidan llamadas a Claude sin sanitización,
-- reglas que impidan llamadas a Claude sin control de presupuesto.
+- reglas que impidan llamadas a LLM sin sanitización,
+- reglas que impidan llamadas a LLM sin control de presupuesto.
 
 ## QA Log Analyst
 

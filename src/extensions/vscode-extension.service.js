@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { withRefresh } from '../platform/platform-refresh.service.js';
 
 const EXTENSION_DIR = path.resolve(process.cwd(), 'secure-code-vscode');
 const PACKAGE_JSON_PATH = path.join(EXTENSION_DIR, 'package.json');
@@ -180,13 +181,13 @@ export function saveQaLogVsCodeExtensionConfig(input = {}) {
 
   writeExtensionConfig(config);
 
-  return {
+  return withRefresh({
     status: 'EXTENSION_CONFIG_SAVED',
     sentToClaude: false,
     config,
     warnings,
     errors
-  };
+  }, 'extension-config-updated');
 }
 
 function listVsixFiles() {
@@ -362,7 +363,7 @@ export async function generateQaLogVsCodeExtension() {
   const newVsixFiles = vsixAfter.filter((fileName) => !vsixBefore.includes(fileName));
   const completed = result.exitCode === 0;
 
-  return {
+  const response = {
     status: completed ? 'EXTENSION_GENERATION_COMPLETED' : 'EXTENSION_GENERATION_FAILED',
     sentToClaude: false,
     canGenerate: true,
@@ -379,4 +380,6 @@ export async function generateQaLogVsCodeExtension() {
     stdout: result.stdout,
     stderr: result.stderr
   };
+
+  return completed ? withRefresh(response, 'extension-generated') : response;
 }

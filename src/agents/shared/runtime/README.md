@@ -10,7 +10,7 @@ validar entrada
   -> sanitizar texto
   -> bloquear si hay contenido sensible crítico
   -> controlar presupuesto
-  -> llamar Claude
+  -> llamar LLM
   -> registrar uso
   -> normalizar respuesta
 ```
@@ -52,5 +52,5 @@ const agent = {
 - No leer `prompt.md` dinámicamente desde runtime.
 - No aceptar prompts libres desde frontend.
 - No duplicar sanitización ni presupuesto dentro de cada agente.
-- Toda llamada a Claude debe pasar por `runAgent`.
+- Toda llamada a LLM debe pasar por `runAgent`.
 - Los endpoints actuales no deben migrarse a este runtime sin una tarea explícita de compatibilidad.

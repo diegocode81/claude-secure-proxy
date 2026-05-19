@@ -1,7 +1,9 @@
 import http from 'node:http';
 import path from 'node:path';
 import './config/env.js';
-import { callClaude } from './llm/claude.client.js';
+import { callLlm } from './llm/llm.client.js';
+import { validateAgentUploadFile } from './security/file-upload-policy.js';
+import { buildPromptInjectionPolicyBlock } from './security/prompt-injection-policy.js';
 import { sanitizeText } from './security/sanitizer.js';
 import {
   ERROR_ANALYSIS_INSTRUCTION,
@@ -14,16 +16,20 @@ import {
   validateAgentInputSchema,
   validateAgentRunRequest
 } from './agents/shared/runtime/index.js';
+import { normalizeAgentLlmSettings } from './agents/shared/llm-settings.js';
 import { handleDashboardRoutes } from './routes/dashboard.routes.js';
+import { handleAgentAdminRoutes } from './routes/agent-admin.routes.js';
+import { handleAgentBuilderRoutes } from './routes/agent-builder.routes.js';
 import { handleDownloadsRoutes } from './routes/downloads.routes.js';
 import { handleExtensionRoutes } from './routes/extension.routes.js';
 import { handleHealthRoutes } from './routes/health.routes.js';
 import { handleModulesRoutes } from './routes/modules.routes.js';
+import { handlePlatformRoutes } from './routes/platform.routes.js';
 import { handleSettingsRoutes } from './routes/settings.routes.js';
 import {
   getUsageSummary,
   recordBlockedRequest,
-  recordClaudeUsage,
+  recordLlmUsage,
   resetUsage
 } from './usage/usage-store.js';
 import {
@@ -32,7 +38,7 @@ import {
 } from './usage/budget-service.js';
 
 const PORT = Number(process.env.PORT || 3000);
-const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 1024 * 1024);
+const MAX_BODY_BYTES = Number(process.env.MAX_BODY_BYTES || 3 * 1024 * 1024);
 const MAX_WORKSPACE_FILES = 10;
 const MAX_SNIPPET_LINES = 300;
 const MAX_CONTEXT_CHARS = 60000;
@@ -47,6 +53,14 @@ const DEFAULT_ANALYZE_INSTRUCTION = [
   'Actua como un analista QA senior.',
   'Analiza el contenido recibido y responde en espanol con hallazgos, riesgos y recomendaciones concretas.'
 ].join(' ');
+
+function withPromptInjectionPolicy(instruction) {
+  return [
+    instruction,
+    '',
+    buildPromptInjectionPolicyBlock()
+  ].join('\n');
+}
 
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
@@ -72,8 +86,9 @@ function budgetExceededPayload(extra = {}) {
   return {
     ...extra,
     status: 'BUDGET_EXCEEDED',
+    sentToLLM: false,
     sentToClaude: false,
-    message: 'Monthly Claude API budget exceeded.'
+    message: 'Monthly LLM API budget exceeded.'
   };
 }
 
@@ -158,9 +173,314 @@ function validateErrorText(errorText) {
 function canRunAgent(agentProfile) {
   return Boolean(
     agentProfile?.execution?.enabled &&
-    agentProfile.execution.mode === 'runtime' &&
-    typeof agentProfile.buildPrompt === 'function'
+    ['runtime', 'runtime-enabled'].includes(agentProfile.execution.mode)
   );
+}
+
+function getAgentAcceptedInputTypes(agentProfile) {
+  const accepted = agentProfile?.interaction?.acceptedInputTypes;
+  return Array.isArray(accepted) && accepted.length > 0 ? accepted : ['text'];
+}
+
+function collectUploadInputs(input) {
+  const uploads = [];
+
+  if (input?.file && typeof input.file === 'object') {
+    uploads.push(input.file);
+  }
+
+  if (input?.fileName !== undefined || input?.fileContent !== undefined) {
+    uploads.push(input);
+  }
+
+  if (Array.isArray(input?.files)) {
+    uploads.push(...input.files);
+  }
+
+  return uploads;
+}
+
+function validateAgentUploadInputs(agentProfile, input) {
+  const uploads = collectUploadInputs(input);
+
+  for (const upload of uploads) {
+    const validation = validateAgentUploadFile({
+      fileName: upload?.fileName,
+      sizeBytes: upload?.sizeBytes,
+      acceptedInputTypes: getAgentAcceptedInputTypes(agentProfile)
+    });
+
+    if (!validation.valid) {
+      return validation;
+    }
+  }
+
+  return {
+    valid: true
+  };
+}
+
+function isQaLogLegacyRuntime(agentProfile) {
+  return Boolean(
+    agentProfile?.id === 'qa-log-analyst' &&
+    agentProfile?.execution?.enabled &&
+    agentProfile?.execution?.mode === 'legacy-runtime-enabled'
+  );
+}
+
+function normalizeQaLogRuntimeInput(input) {
+  const errorText = typeof input.errorText === 'string' && input.errorText.trim()
+    ? input.errorText.trim()
+    : '';
+  const logText = typeof input.logText === 'string' && input.logText.trim()
+    ? input.logText.trim()
+    : '';
+  const selectedText = errorText || logText;
+  const validationError = validateErrorText(selectedText);
+
+  if (validationError) {
+    throw Object.assign(new Error(validationError), { statusCode: 400 });
+  }
+
+  const context = typeof input.context === 'string' && input.context.trim()
+    ? input.context.trim()
+    : 'unknown';
+  const technology = typeof input.technology === 'string' && input.technology.trim()
+    ? input.technology.trim()
+    : 'unknown';
+  const workspaceContext = normalizeWorkspaceContext(input.workspaceContext);
+
+  if (workspaceContext.length > 0) {
+    return {
+      mode: 'error-context-analysis',
+      context,
+      technology,
+      filesReceived: workspaceContext.length,
+      instruction: withPromptInjectionPolicy(ERROR_CONTEXT_ANALYSIS_INSTRUCTION),
+      text: buildWorkspacePrompt({
+        errorText: selectedText,
+        context,
+        technology,
+        workspaceContext
+      })
+    };
+  }
+
+  return {
+    mode: 'error-analysis',
+    context,
+    technology,
+    filesReceived: 0,
+    instruction: [
+      ERROR_ANALYSIS_INSTRUCTION,
+      '',
+      `Contexto declarado: ${context}`,
+      `Tecnologia declarada: ${technology}`
+    ].join('\n') + `\n\n${buildPromptInjectionPolicyBlock()}`,
+    text: selectedText
+  };
+}
+
+function mapLlmErrorToAgentResponse(agentProfile, error, execution) {
+  const message = error?.message || 'LLM runtime error.';
+
+  if (message.includes('API error 401') || error?.statusCode === 401) {
+    return {
+      httpStatus: 401,
+      payload: createAgentResponse({
+        agentId: agentProfile.id,
+        status: 'LLM_AUTHENTICATION_ERROR',
+        sentToLLM: true,
+        sentToClaude: false,
+        summary: 'La API key del LLM es inválida, expiró o no está autorizada. Revisa Configuración > LLM.',
+        data: {
+          mode: 'qa-log-legacy-runtime',
+          agentName: agentProfile.name,
+          execution
+        },
+        risks: [
+          'No se puede completar el análisis mientras la autenticación del proveedor LLM falle.'
+        ],
+        recommendations: [
+          'Revisar Configuración > LLM sin exponer la API key completa.'
+        ]
+      })
+    };
+  }
+
+  if (message.includes('API_KEY') || message.includes('ANTHROPIC_API_KEY') || message.includes('no esta configurada')) {
+    return {
+      httpStatus: 400,
+      payload: createAgentResponse({
+        agentId: agentProfile.id,
+        status: 'LLM_API_KEY_NOT_CONFIGURED',
+        sentToLLM: false,
+        sentToClaude: false,
+        summary: 'No hay una API key válida configurada para el LLM. Revisa Configuración > LLM o variables de entorno.',
+        data: {
+          mode: 'qa-log-legacy-runtime',
+          agentName: agentProfile.name,
+          execution
+        },
+        recommendations: [
+          'Configurar una API key válida antes de ejecutar análisis reales.'
+        ]
+      })
+    };
+  }
+
+  return {
+    httpStatus: 500,
+    payload: createAgentResponse({
+      agentId: agentProfile.id,
+      status: 'AGENT_RUN_FAILED',
+      sentToLLM: false,
+      sentToClaude: false,
+      summary: 'El runtime de QA Log Analyst falló de forma controlada.',
+      data: {
+        mode: 'qa-log-legacy-runtime',
+        agentName: agentProfile.name,
+        execution
+      },
+      risks: [
+        'El análisis no se completó.'
+      ],
+      recommendations: [
+        'Revisar logs del servidor sin exponer secretos.'
+      ]
+    })
+  };
+}
+
+async function runQaLogAnalystLegacyRuntime(agentProfile, input, execution) {
+  let normalized;
+
+  try {
+    normalized = normalizeQaLogRuntimeInput(input);
+  } catch (error) {
+    return {
+      httpStatus: error.statusCode || 400,
+      payload: createAgentResponse({
+        agentId: agentProfile.id,
+        status: 'AGENT_INPUT_INVALID',
+        sentToLLM: false,
+        sentToClaude: false,
+        summary: error.message,
+        data: {
+          mode: 'qa-log-legacy-runtime-validation',
+          agentName: agentProfile.name,
+          execution,
+          receivedInputKeys: Object.keys(input || {})
+        },
+        recommendations: [
+          'Enviar errorText o logText como string no vacío.'
+        ]
+      })
+    };
+  }
+
+  const sanitized = sanitizeText(normalized.text);
+
+  if (sanitized.status === 'BLOCKED') {
+    recordBlockedRequest();
+    return {
+      httpStatus: 200,
+      payload: createAgentResponse({
+        agentId: agentProfile.id,
+        status: 'AGENT_RUN_BLOCKED',
+        sentToLLM: false,
+        sentToClaude: false,
+        summary: 'El contenido contiene datos sensibles críticos y no fue enviado al LLM.',
+        data: {
+          mode: normalized.mode,
+          agentName: agentProfile.name,
+          execution,
+          risk: 'HIGH',
+          findings: sanitized.findings,
+          sanitizedText: sanitized.sanitizedText
+        },
+        risks: [
+          'Se detectó contenido sensible.'
+        ],
+        recommendations: [
+          'Remover secretos, credenciales o tokens antes de reintentar.'
+        ]
+      })
+    };
+  }
+
+  if (isBudgetExceeded()) {
+    return {
+      httpStatus: 200,
+      payload: createAgentResponse({
+        agentId: agentProfile.id,
+        status: 'AGENT_RUN_BUDGET_BLOCKED',
+        sentToLLM: false,
+        sentToClaude: false,
+        summary: 'La ejecución fue bloqueada por control de presupuesto.',
+        data: {
+          mode: normalized.mode,
+          agentName: agentProfile.name,
+          execution,
+          context: normalized.context,
+          technology: normalized.technology,
+          filesReceived: normalized.filesReceived
+        },
+        risks: [
+          'Ejecutar análisis sin presupuesto disponible rompería la gobernanza de consumo.'
+        ],
+        recommendations: [
+          'Revisar el dashboard de consumo y presupuesto antes de reintentar.'
+        ]
+      })
+    };
+  }
+
+  try {
+    const llmSettings = normalizeAgentLlmSettings(agentProfile.llmSettings || {});
+    const textForLlm = sanitized.status === 'SANITIZED' ? sanitized.sanitizedText : normalized.text;
+    const llmResult = await callLlm({
+      instruction: normalized.instruction,
+      text: textForLlm,
+      maxTokens: llmSettings.maxOutputTokens,
+      temperature: llmSettings.temperature
+    });
+    const usageSummary = recordLlmUsage({
+      status: sanitized.status,
+      inputTokens: llmResult.usage.inputTokens,
+      outputTokens: llmResult.usage.outputTokens
+    });
+
+    return {
+      httpStatus: 200,
+      payload: addBudgetWarning(createAgentResponse({
+        agentId: agentProfile.id,
+        status: 'AGENT_RUN_COMPLETED',
+        sentToLLM: true,
+        sentToClaude: true,
+        summary: 'QA Log Analyst completó el análisis usando la lógica legacy segura.',
+        data: {
+          mode: normalized.mode,
+          agentName: agentProfile.name,
+          execution,
+          context: normalized.context,
+          technology: normalized.technology,
+          filesReceived: normalized.filesReceived,
+          sanitizerStatus: sanitized.status,
+          risk: sanitized.risk,
+          findings: sanitized.findings,
+          llmSettings,
+          usage: usageSummary
+        },
+        recommendations: [
+          'Revisar rawModelText para el análisis detallado.'
+        ],
+        rawModelText: llmResult.text
+      }), usageSummary)
+    };
+  } catch (error) {
+    return mapLlmErrorToAgentResponse(agentProfile, error, execution);
+  }
 }
 
 async function handleAgentRun(req, res, agentId) {
@@ -237,6 +557,29 @@ async function handleAgentRun(req, res, agentId) {
     return;
   }
 
+  const uploadValidation = validateAgentUploadInputs(agentProfile, validation.input);
+  if (!uploadValidation.valid) {
+    sendJson(res, 400, createAgentResponse({
+      agentId: agentProfile.id,
+      status: 'AGENT_INPUT_INVALID',
+      sentToClaude: false,
+      summary: uploadValidation.error,
+      data: {
+        mode: 'agent-file-upload-validation',
+        agentName: agentProfile.name,
+        execution,
+        receivedInputKeys: validation.receivedInputKeys
+      },
+      risks: [
+        'File input rejected before runtime execution.'
+      ],
+      recommendations: [
+        'Use only file types declared by the agent and keep each file under 2 MB.'
+      ]
+    }));
+    return;
+  }
+
   if (!execution.enabled) {
     sendJson(res, 200, createAgentResponse({
       agentId: agentProfile.id,
@@ -263,6 +606,12 @@ async function handleAgentRun(req, res, agentId) {
         'Use legacy endpoints until runtime execution is enabled.'
       ]
     }));
+    return;
+  }
+
+  if (isQaLogLegacyRuntime(agentProfile)) {
+    const result = await runQaLogAnalystLegacyRuntime(agentProfile, validation.input, execution);
+    sendJson(res, result.httpStatus, result.payload);
     return;
   }
 
@@ -388,8 +737,9 @@ async function handleAnalyze(body, res) {
       status: 'BLOCKED',
       risk: 'HIGH',
       findings: result.findings,
+      sentToLLM: false,
       sentToClaude: false,
-      message: 'El contenido contiene datos sensibles criticos y no fue enviado a Claude.',
+      message: 'El contenido contiene datos sensibles criticos y no fue enviado al LLM.',
       sanitizedText: result.sanitizedText
     });
     return;
@@ -400,23 +750,25 @@ async function handleAnalyze(body, res) {
     return;
   }
 
-  const textForClaude = result.status === 'SANITIZED' ? result.sanitizedText : body.text;
-  const claudeResult = await callClaude({
-    instruction: body.instruction || DEFAULT_ANALYZE_INSTRUCTION,
-    text: textForClaude
+  const textForLlm = result.status === 'SANITIZED' ? result.sanitizedText : body.text;
+  const llmResult = await callLlm({
+    instruction: withPromptInjectionPolicy(body.instruction || DEFAULT_ANALYZE_INSTRUCTION),
+    text: textForLlm
   });
-  const usageSummary = recordClaudeUsage({
+  const usageSummary = recordLlmUsage({
     status: result.status,
-    inputTokens: claudeResult.usage.inputTokens,
-    outputTokens: claudeResult.usage.outputTokens
+    inputTokens: llmResult.usage.inputTokens,
+    outputTokens: llmResult.usage.outputTokens
   });
 
   sendJson(res, 200, addBudgetWarning({
     status: result.status,
     risk: result.risk,
     findings: result.findings,
+    sentToLLM: true,
     sentToClaude: true,
-    claudeResponse: claudeResult.text
+    llmResponse: llmResult.text,
+    claudeResponse: llmResult.text
   }, usageSummary));
 }
 
@@ -442,8 +794,9 @@ async function handleAnalyzeError(body, res) {
       status: 'BLOCKED',
       risk: 'HIGH',
       findings: result.findings,
+      sentToLLM: false,
       sentToClaude: false,
-      message: 'El contenido contiene datos sensibles críticos y no fue enviado a Claude.',
+      message: 'El contenido contiene datos sensibles críticos y no fue enviado al LLM.',
       sanitizedText: result.sanitizedText
     });
     return;
@@ -458,20 +811,20 @@ async function handleAnalyzeError(body, res) {
     return;
   }
 
-  const textForClaude = result.status === 'SANITIZED' ? result.sanitizedText : body.text;
-  const claudeResult = await callClaude({
+  const textForLlm = result.status === 'SANITIZED' ? result.sanitizedText : body.text;
+  const llmResult = await callLlm({
     instruction: [
       ERROR_ANALYSIS_INSTRUCTION,
       '',
       `Contexto declarado: ${context}`,
       `Tecnologia declarada: ${technology}`
-    ].join('\n'),
-    text: textForClaude
+    ].join('\n') + `\n\n${buildPromptInjectionPolicyBlock()}`,
+    text: textForLlm
   });
-  const usageSummary = recordClaudeUsage({
+  const usageSummary = recordLlmUsage({
     status: result.status,
-    inputTokens: claudeResult.usage.inputTokens,
-    outputTokens: claudeResult.usage.outputTokens
+    inputTokens: llmResult.usage.inputTokens,
+    outputTokens: llmResult.usage.outputTokens
   });
 
   sendJson(res, 200, addBudgetWarning({
@@ -479,10 +832,12 @@ async function handleAnalyzeError(body, res) {
     status: result.status,
     risk: result.risk,
     findings: result.findings,
+    sentToLLM: true,
     sentToClaude: true,
     context,
     technology,
-    claudeResponse: claudeResult.text
+    llmResponse: llmResult.text,
+    claudeResponse: llmResult.text
   }, usageSummary));
 }
 
@@ -515,8 +870,9 @@ async function handleAnalyzeErrorContext(body, res) {
       status: 'BLOCKED',
       risk: 'HIGH',
       findings: result.findings,
+      sentToLLM: false,
       sentToClaude: false,
-      message: 'El contenido contiene datos sensibles críticos y no fue enviado a Claude.',
+      message: 'El contenido contiene datos sensibles críticos y no fue enviado al LLM.',
       sanitizedText: result.sanitizedText
     });
     return;
@@ -532,15 +888,15 @@ async function handleAnalyzeErrorContext(body, res) {
     return;
   }
 
-  const textForClaude = result.status === 'SANITIZED' ? result.sanitizedText : combinedPrompt;
-  const claudeResult = await callClaude({
-    instruction: ERROR_CONTEXT_ANALYSIS_INSTRUCTION,
-    text: textForClaude
+  const textForLlm = result.status === 'SANITIZED' ? result.sanitizedText : combinedPrompt;
+  const llmResult = await callLlm({
+    instruction: withPromptInjectionPolicy(ERROR_CONTEXT_ANALYSIS_INSTRUCTION),
+    text: textForLlm
   });
-  const usageSummary = recordClaudeUsage({
+  const usageSummary = recordLlmUsage({
     status: result.status,
-    inputTokens: claudeResult.usage.inputTokens,
-    outputTokens: claudeResult.usage.outputTokens
+    inputTokens: llmResult.usage.inputTokens,
+    outputTokens: llmResult.usage.outputTokens
   });
 
   sendJson(res, 200, addBudgetWarning({
@@ -548,11 +904,13 @@ async function handleAnalyzeErrorContext(body, res) {
     status: result.status,
     risk: result.risk,
     findings: result.findings,
+    sentToLLM: true,
     sentToClaude: true,
     context,
     technology,
     filesReceived: workspaceContext.length,
-    claudeResponse: claudeResult.text
+    llmResponse: llmResult.text,
+    claudeResponse: llmResult.text
   }, usageSummary));
 }
 
@@ -580,6 +938,33 @@ async function route(req, res) {
 
   if (req.method === 'GET' && url.pathname === '/usage') {
     sendJson(res, 200, getUsageSummary());
+    return;
+  }
+
+  if (handlePlatformRoutes({
+    req,
+    res,
+    pathname: url.pathname,
+    sendJson
+  })) {
+    return;
+  }
+
+  if (await handleAgentBuilderRoutes({
+    req,
+    res,
+    pathname: url.pathname,
+    sendJson
+  })) {
+    return;
+  }
+
+  if (await handleAgentAdminRoutes({
+    req,
+    res,
+    pathname: url.pathname,
+    sendJson
+  })) {
     return;
   }
 
@@ -694,5 +1079,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`claude-secure-proxy listening on http://localhost:${PORT}/dashboard`);
+  console.log(`qa-ia-platform listening on http://localhost:${PORT}/dashboard`);
 });
