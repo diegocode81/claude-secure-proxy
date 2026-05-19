@@ -339,6 +339,12 @@ La sección de entrada/salida debe pedir solo modo de entrada, modo de salida y 
 
 Todo agente con `outputMode` de pantalla debe devolver una salida documental legible, lista para copiar y pegar, incluyendo todas las secciones esperadas configuradas. El JSON técnico nunca debe ser la salida principal.
 
+Si falta información crítica para cumplir una solicitud de forma confiable, el runtime debe preguntar primero. La respuesta debe incluir máximo 5 preguntas concretas y accionables, puede agregar un análisis preliminar breve, y no debe generar un informe completo hasta recibir el contexto faltante.
+
+La sección `Preguntas abiertas` debe contener preguntas reales. No usar frases genéricas como `No se cuenta con información suficiente para determinarlo` dentro de esa sección; si no hay preguntas reales, omitirla.
+
+El runtime visible debe filtrar secciones vacías o placeholders. En modo `Necesito más información`, no se deben renderizar secciones documentales incompletas como informe, criterios, escenarios, riesgos o recomendaciones.
+
 Toda acción async visible para el usuario debe mostrar un indicador de carga reutilizable y deshabilitar el botón mientras espera respuesta. Usar el helper compartido de loader en vistas nuevas o modificadas.
 
 Validaciones recomendadas

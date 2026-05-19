@@ -416,15 +416,53 @@ function renderAgentInteraction(profile) {
           return '## ' + title + '\\n\\n' + content + '\\n\\n';
         }
 
-        function valueToMarkdown(value) {
+        function isGenericInsufficientText(value) {
+          return /no se cuenta con información suficiente|no hay información suficiente|información insuficiente|no se puede determinar con la información proporcionada|no aplica por falta de información|pendiente de información adicional/i.test(String(value || '').replace(/^[-*]\\s+/gm, '').trim());
+        }
+
+        function hasQuestionText(value) {
+          return /[?¿]/.test(String(value || ''));
+        }
+
+        function isPlaceholderInsufficientInfo(content) {
+          const lines = String(content || '')
+            .split('\\n')
+            .map((line) => line.replace(/^[-*]\\s+/gm, '').replace(/[.。]+$/g, '').trim())
+            .filter(Boolean);
+
+          if (lines.length === 0) return true;
+          return lines.every(isGenericInsufficientText);
+        }
+
+        function isClarificationFirstResponse(markdownText) {
+          const text = String(markdownText || '').trim();
+          return /^#{1,6}\\s+Necesito más información\\b/im.test(text)
+            || /^#{1,6}\\s+Preguntas abiertas\\b/im.test(text)
+            || /antes de generar/i.test(text)
+            || /necesito que me proporciones/i.test(text)
+            || /necesito confirmar/i.test(text)
+            || /falta información/i.test(text)
+            || /no se ha proporcionado/i.test(text);
+        }
+
+        function valueToMarkdown(value, section) {
+          if (section?.field === 'openQuestions') {
+            const values = Array.isArray(value) ? value : [value];
+            const questions = values
+              .map((item) => typeof item === 'string' ? item.trim() : '')
+              .filter((item) => item && hasQuestionText(item) && !isGenericInsufficientText(item))
+              .slice(0, 5);
+            return questions.length > 0 ? questions.map((item) => '- ' + item).join('\\n') : '';
+          }
+
           if (Array.isArray(value)) {
             return value.length > 0
               ? value.map((item) => '- ' + (typeof item === 'string' ? item : JSON.stringify(item))).join('\\n')
-              : 'No se cuenta con información suficiente para determinarlo.';
+              : 'No se identificó contenido suficiente para completar esta sección. Se recomienda proporcionar más contexto específico para este apartado.';
           }
           if (value && typeof value === 'object') return JSON.stringify(value, null, 2);
           const text = String(value || '').trim();
-          return text || 'No se cuenta con información suficiente para determinarlo.';
+          return text || 'No se identificó contenido suficiente para completar esta sección. Se recomienda proporcionar más contexto específico para este apartado.';
         }
 
         function parseJsonOutput(text) {
@@ -445,6 +483,66 @@ function renderAgentInteraction(profile) {
           });
         }
 
+        function parseMarkdownSections(markdown) {
+          const lines = String(markdown || '').split('\\n');
+          const sections = [];
+          let current = null;
+
+          for (const line of lines) {
+            const headingMatch = line.match(/^(#{1,6})\\s+(.+?)\\s*$/);
+
+            if (headingMatch) {
+              current = {
+                heading: line,
+                title: headingMatch[2].trim(),
+                lines: []
+              };
+              sections.push(current);
+            } else if (current) {
+              current.lines.push(line);
+            } else if (line.trim()) {
+              current = {
+                heading: '',
+                title: '',
+                lines: [line]
+              };
+              sections.push(current);
+            }
+          }
+
+          return sections;
+        }
+
+        function removeEmptyOrPlaceholderSections(markdown) {
+          const sections = parseMarkdownSections(markdown);
+
+          if (sections.length === 0) {
+            const text = String(markdown || '').trim();
+            return isPlaceholderInsufficientInfo(text) ? 'El agente no devolvió contenido visible útil.' : text;
+          }
+
+          const kept = sections.filter((section) => {
+            const content = section.lines.join('\\n').trim();
+            const title = section.title.toLowerCase();
+
+            if (title === 'preguntas abiertas') {
+              return content
+              .split('\\n')
+              .some((item) => hasQuestionText(item) && !isGenericInsufficientText(item));
+            }
+
+            if (!content) return false;
+            return !isPlaceholderInsufficientInfo(content);
+          });
+
+          const output = kept.map((section) => {
+            const content = section.lines.join('\\n').trim();
+            return section.heading ? section.heading + '\\n\\n' + content : content;
+          }).filter(Boolean).join('\\n\\n').trim();
+
+          return output || 'El agente no devolvió contenido visible útil.';
+        }
+
         function normalizeVisibleOutput(text) {
           const rawText = String(text || '').trim();
           const parsed = parseJsonOutput(rawText);
@@ -452,19 +550,27 @@ function renderAgentInteraction(profile) {
 
           if (parsed) {
             markdown = expectedSections.map((section) => {
-              return '## ' + section.title + '\\n\\n' + valueToMarkdown(parsed[section.field]);
-            }).join('\\n\\n');
+              const content = valueToMarkdown(parsed[section.field], section);
+              return content ? '## ' + section.title + '\\n\\n' + content : '';
+            }).filter(Boolean).join('\\n\\n');
           } else {
-            markdown = rawText || 'El agente no devolvió contenido visible.';
+            markdown = removeEmptyOrPlaceholderSections(rawText || 'El agente no devolvió contenido visible.');
+          }
+
+          markdown = removeEmptyOrPlaceholderSections(markdown);
+
+          if (isClarificationFirstResponse(markdown)) {
+            return markdown;
           }
 
           for (const section of expectedSections) {
+            if (section.field === 'openQuestions') continue;
             if (!containsSection(markdown, section.title)) {
-              markdown += (markdown ? '\\n\\n' : '') + '## ' + section.title + '\\n\\nNo se cuenta con información suficiente para determinarlo.';
+              markdown += (markdown ? '\\n\\n' : '') + '## ' + section.title + '\\n\\nNo se identificó contenido suficiente para completar esta sección. Se recomienda proporcionar más contexto específico para este apartado.';
             }
           }
 
-          return markdown;
+          return removeEmptyOrPlaceholderSections(markdown);
         }
 
         function getVisiblePayloadOutput(payload) {

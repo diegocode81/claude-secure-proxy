@@ -110,6 +110,12 @@ Los agentes deben definir campos esperados de salida mediante `io.outputFields` 
 
 La respuesta visible estándar debe ser `llmResponse` en Markdown limpio, lista para copiar y pegar. `claudeResponse` queda solo como fallback legacy. No se debe devolver JSON como salida principal para usuarios funcionales.
 
+Si falta información crítica, el agente debe preguntar primero en vez de generar un informe largo o incompleto. Debe devolver máximo 5 preguntas concretas y accionables en “Necesito más información” o “Preguntas abiertas”, con un “Análisis preliminar” breve solo si aporta valor sin inventar.
+
+La sección “Preguntas abiertas” debe contener preguntas reales. No usar frases genéricas de información insuficiente dentro de esa sección; si no hay preguntas reales, se omite.
+
+Cuando un agente está en modo aclaración, no debe rellenar secciones con “No se cuenta con información suficiente para determinarlo”. Debe preguntar primero y omitir secciones documentales incompletas hasta recibir contexto suficiente.
+
 Todo agente nuevo debe iniciar con `execution.enabled = false`.
 
 No se permite crear un agente nuevo con ejecución real habilitada.

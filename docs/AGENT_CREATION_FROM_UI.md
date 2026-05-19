@@ -126,6 +126,12 @@ La plataforma convierte esos campos en secciones documentales para el runtime. P
 
 Cuando el modo de salida es pantalla, el agente debe responder en Markdown limpio, listo para copiar y pegar en un documento QA.
 
+Si la solicitud no trae contexto suficiente para entregar una respuesta confiable, el agente debe preguntar primero. En ese caso debe mostrar una sección “Necesito más información” o “Preguntas abiertas” con máximo 5 preguntas concretas y accionables, y puede agregar un “Análisis preliminar” breve.
+
+La respuesta completa se genera cuando el usuario entrega el contexto faltante. La sección “Preguntas abiertas” no debe contener textos genéricos de información insuficiente; debe contener preguntas reales o no mostrarse.
+
+Cuando el agente está preguntando primero, la salida visible no debe mostrar secciones vacías ni placeholders de informe, criterios, escenarios, riesgos o recomendaciones.
+
 El JSON técnico queda solo para diagnóstico en la respuesta técnica colapsada. No debe ser la salida principal para usuarios funcionales.
 
 ## Estados de procesamiento
