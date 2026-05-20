@@ -1,15 +1,16 @@
-# qa.chistes
+# qa chistes
 
 ## Propósito
 
-Abnaliza si un chiste es bueno malo o regular y dame un informe
+analizar el chiste contando y generar el informe
 
 ## Casos de uso
 
-- Evaluar calidad de chistes para contenido corporativo o campañas de marketing
-- Analizar riesgos de comunicación (ofensivo, inapropiado, ambiguo) en contenido humorístico
-- Validar alineación de humor con audiencia objetivo y contexto organizacional
-- Generar reportes de calidad con recomendaciones de mejora para contenido humorístico
+- Validar que un chiste cumple con estructura narrativa básica (setup, punchline, coherencia)
+- Analizar comprensibilidad del contenido humorístico para audiencias objetivo
+- Identificar riesgos de ambigüedad, ofensividad o falta de contexto cultural
+- Generar informe QA estructurado sobre calidad funcional del chiste
+- Detectar dependencias de contexto no explícitas que afecten comprensión
 
 ## Estado
 

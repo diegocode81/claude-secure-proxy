@@ -1,12 +1,8 @@
 import { escapeHtml, renderLayout } from './layout.js';
 import { renderLoadingIndicator } from './shared/loading.view.js';
+import { DEFAULT_AGENT_CAPABILITIES } from '../agents/shared/agent-defaults.js';
 
-const defaultCapabilities = [
-  'Analizar información de negocio',
-  'Generar criterios de aceptación',
-  'Proponer escenarios de prueba',
-  'Identificar preguntas abiertas'
-].join('\n');
+const defaultCapabilities = DEFAULT_AGENT_CAPABILITIES.join('\n');
 
 const outputFieldOptions = [
   ['summary', 'Resumen'],
@@ -88,25 +84,7 @@ export function renderAgentBuilderView() {
         </div>
 
         <div class="field">
-          <label for="skill">Skill del agente</label>
-          <textarea id="skill" name="skill" required></textarea>
-          <p class="form-note">Define qué sabe hacer el agente, sus límites, riesgos, criterios de calidad y cuándo debe pedir más información.</p>
-        </div>
-
-        <div class="field">
-          <label for="prompt">Prompt oficial</label>
-          <textarea id="prompt" name="prompt" required></textarea>
-          <p class="form-note">Instrucciones que recibirá el LLM. Debe indicar idioma, formato de respuesta, reglas para no inventar información y cómo diferenciar evidencia de hipótesis.</p>
-        </div>
-
-        <div class="field">
-          <label for="contractMarkdown">Contract</label>
-          <textarea id="contractMarkdown" name="contractMarkdown" required></textarea>
-          <p class="form-note">Documentación completa del contrato técnico: requests válidos, inválidos, errores, estados y respuestas.</p>
-        </div>
-
-        <div class="field">
-          <h2>Entrada y salida del agente</h2>
+          <h2>Configuración funcional del agente</h2>
           <p class="form-note">Define cómo el usuario entregará información al agente y qué tipo de respuesta espera. La plataforma generará automáticamente las instrucciones y contratos internos.</p>
         </div>
 
@@ -161,16 +139,16 @@ export function renderAgentBuilderView() {
             <label for="responseDetailLevel">Nivel de detalle de respuesta</label>
             <select id="responseDetailLevel" name="responseDetailLevel">
               <option value="brief">Breve</option>
-              <option value="standard" selected>Estándar</option>
+              <option value="standard">Estándar</option>
               <option value="detailed">Detallado</option>
-              <option value="extensive">Extenso</option>
+              <option value="extensive" selected>Extenso</option>
             </select>
-            <p class="form-note">Define qué tan completa debe ser la respuesta del agente. Más detalle puede consumir más tokens.</p>
+            <p class="form-note">Define qué tan completa debe ser la respuesta. Por defecto se usa Extenso para priorizar análisis QA completos y listos para revisión.</p>
           </div>
           <div>
             <label for="maxOutputTokens">Máximo de tokens de respuesta</label>
-            <input id="maxOutputTokens" name="maxOutputTokens" type="number" min="300" max="8000" value="1500">
-            <p class="form-note">Controla qué tan larga puede ser la respuesta del LLM. Más tokens aumentan el consumo del presupuesto mensual.</p>
+            <input id="maxOutputTokens" name="maxOutputTokens" type="number" min="300" max="8000" value="5000">
+            <p class="form-note">Controla la longitud máxima de la respuesta. El default de 5000 permite informes QA completos; puedes bajarlo si deseas reducir consumo.</p>
           </div>
         </div>
 
@@ -181,13 +159,13 @@ export function renderAgentBuilderView() {
             <option value="balanced">Balanceada</option>
             <option value="creative">Creativa</option>
           </select>
-          <p class="form-note">Define el nivel de variación de la respuesta. Para QA se recomienda Precisa o Balanceada.</p>
+          <p class="form-note">Define la variación de la respuesta. Para QA se usa Precisa por defecto para mejorar consistencia, trazabilidad y reducir invención.</p>
         </div>
 
         <div class="field">
           <label for="capabilities">Capacidades</label>
           <textarea id="capabilities" name="capabilities" required>${escapeHtml(defaultCapabilities)}</textarea>
-          <p class="form-note">Lista de capacidades, una por línea. Se mostrarán en el perfil del agente.</p>
+          <p class="form-note">Lista las capacidades principales del agente. La plataforma propone capacidades QA robustas por defecto; puedes ajustarlas según el objetivo del agente.</p>
         </div>
 
         <div class="actions">
@@ -336,9 +314,6 @@ export function renderAgentBuilderView() {
           if (data.responsePreset) document.getElementById('responsePreset').value = data.responsePreset;
           if (document.getElementById('responsePreset').value === 'custom') setOutputFields(data.outputFields);
           syncCustomOutputFieldsVisibility();
-          document.getElementById('skill').value = data.skillMarkdown || document.getElementById('skill').value;
-          document.getElementById('prompt').value = data.promptMarkdown || document.getElementById('prompt').value;
-          document.getElementById('contractMarkdown').value = data.contractMarkdown || document.getElementById('contractMarkdown').value;
           if (data.llmSettings) {
             document.getElementById('responseDetailLevel').value = data.llmSettings.responseDetailLevel || document.getElementById('responseDetailLevel').value;
             document.getElementById('maxOutputTokens').value = data.llmSettings.maxOutputTokens || document.getElementById('maxOutputTokens').value;
@@ -366,9 +341,6 @@ export function renderAgentBuilderView() {
         const role = document.getElementById('role').value.trim();
         const useCases = linesFrom('useCases');
         const capabilities = linesFrom('capabilities');
-        const skill = document.getElementById('skill').value.trim();
-        const prompt = document.getElementById('prompt').value.trim();
-        const contractMarkdown = document.getElementById('contractMarkdown').value.trim();
         const inputMode = document.getElementById('inputMode').value;
         const outputMode = document.getElementById('outputMode').value;
         const responsePreset = document.getElementById('responsePreset').value;
@@ -384,9 +356,6 @@ export function renderAgentBuilderView() {
         if (!role) errors.push('role requerido.');
         if (useCases.length < 1) errors.push('useCases debe tener al menos un caso.');
         if (capabilities.length < 1) errors.push('capabilities debe tener al menos una capacidad.');
-        if (skill.length < 200) errors.push('El skill debe tener al menos 200 caracteres.');
-        if (prompt.length < 200) errors.push('El prompt oficial debe tener al menos 200 caracteres.');
-        if (contractMarkdown.length < 200) errors.push('El contrato documentado debe tener al menos 200 caracteres.');
         if (!['text', 'file', 'text_and_file'].includes(inputMode)) errors.push('Si no se selecciona modo de entrada, selecciona una opción válida.');
         if (!['screen', 'download', 'screen_and_download'].includes(outputMode)) errors.push('Si no se selecciona tipo de salida, selecciona una opción válida.');
         if (!['qa_standard', 'qa_acceptance_and_scenarios', 'executive_report', 'technical_analysis', 'custom'].includes(responsePreset)) errors.push('Tipo de respuesta esperada no es válido.');
@@ -406,9 +375,6 @@ export function renderAgentBuilderView() {
           description: document.getElementById('description').value.trim(),
           role,
           useCases,
-          skill,
-          prompt,
-          contractMarkdown,
           capabilities,
           inputMode,
           outputMode,

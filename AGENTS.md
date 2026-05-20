@@ -19,7 +19,7 @@ QA Log Analyst
 
 QA Log Analyst analiza errores, logs, stacktraces y contexto técnico.
 
-QA Log Analyst ya está funcional por endpoints legacy y protegido por runtime deshabilitado en el endpoint genérico de agentes.
+QA Log Analyst está activado de forma controlada en el endpoint genérico de agentes y reutiliza la lógica legacy segura.
 
 Estado validado
 
@@ -27,17 +27,19 @@ Estado validado de la plataforma base:
 
 npm run check pasa.
 npm test pasa.
-npm test tiene 8 tests aprobados de 8.
+npm test tiene 34 tests aprobados de 34.
 Smoke tests HTTP pasan con servidor levantado.
 /health responde correctamente.
 /dashboard responde correctamente.
 /modules responde correctamente.
 /usage responde correctamente.
 /sanitize bloquea contenido sensible.
-/agents/qa-log-analyst/run responde de forma segura con execution.enabled = false.
-/agents/qa-log-analyst/run responde sentToClaude = false.
-No se han creado agentes nuevos después de QA Log Analyst.
-No se ha activado runtime real para agentes genéricos.
+/agents/qa-log-analyst/run está activado de forma controlada.
+/agents/qa-log-analyst/run usa execution.enabled = true.
+/agents/qa-log-analyst/run usa execution.mode = legacy-runtime-enabled.
+/agents/qa-log-analyst/run conserva `sentToLLM` como campo principal y `sentToClaude` como compatibilidad legacy cuando aplica.
+QA Log Analyst sigue protegido contra edición/eliminación desde UI.
+El runtime de QA Log Analyst pasa por sanitización, presupuesto y registro de usage.
 
 Nomenclatura LLM
 
@@ -115,14 +117,20 @@ src/agents/shared/runtime/
 
 Estado esperado:
 
-execution.enabled = false
-mode = legacy
-sentToClaude = false desde /agents/qa-log-analyst/run
+execution.enabled = true
+execution.mode = legacy-runtime-enabled
+runtimeEndpoint = /agents/qa-log-analyst/run
+sentToLLM es el campo semántico principal
+sentToClaude se conserva solo por compatibilidad legacy
 
-Los endpoints legacy actuales siguen siendo la vía funcional:
+El endpoint genérico usa la lógica legacy segura y mantiene:
 
 /analyze-error
 /analyze-error-context
+
+QA Log Analyst sigue protegido contra edición y eliminación desde UI.
+
+QA Log Analyst debe pasar por sanitización, control de presupuesto y registro de usage/tokens cuando llama al LLM.
 Gobernanza de agentes
 
 No crear nuevos agentes sin cumplir la gobernanza.
@@ -137,7 +145,7 @@ Tener contract.md.
 Tener README.md.
 Tener readiness-checklist.md.
 Registrarse explícitamente en src/agents/registry.js.
-Iniciar con execution.enabled = false.
+Iniciar con `execution.enabled` en `false`.
 No activar runtime real en el mismo cambio donde se crea.
 Tener contrato de entrada.
 Tener contrato de salida.
@@ -154,7 +162,13 @@ docs/BASELINE_QA_LOG_PLATFORM_CLOSURE.md
 
 Creación de agentes desde UI
 
-/agent-builder puede crear estructura base de agentes QA.
+/agent-builder crea agentes QA desde UI.
+
+El formulario está simplificado para usuarios QA funcionales.
+
+El usuario solo define campos funcionales como identidad, propósito, capacidades, entrada/salida esperada, respuesta LLM y comportamiento funcional.
+
+Campos internos como `status`, `statusLabel`, `navigation.order`, `governance`, readiness checklist, `inputContract`, `outputSchema` y `userInstructions` son generados por backend.
 
 Todo agente creado inicia deshabilitado.
 
@@ -162,7 +176,7 @@ No se permite estado active en creación.
 
 QA Log Analyst no puede ser sobrescrito.
 
-La creación no llama LLM.
+La creación final no llama LLM salvo que una tarea explícita agregue una función de sugerencia o asistencia separada y gobernada.
 
 Los agentes creados deben revisarse antes de activar runtime real.
 
@@ -190,6 +204,8 @@ execution se administra solo por activar/desactivar.
 
 El Agent Builder puede usar Sugerencia IA para completar campos.
 
+La Sugerencia IA debe priorizar calidad de agente especialista sobre brevedad. No debe generar skills, prompts o contratos genéricos ni excesivamente cortos.
+
 La sugerencia no crea el agente.
 
 La sugerencia no activa runtime.
@@ -211,6 +227,20 @@ No se deben aceptar prompts libres desde frontend para saltarse contratos.
 No se deben guardar secretos en archivos del repositorio.
 
 No se deben incluir tokens, API keys, passwords, credenciales ni datos sensibles en ejemplos.
+
+La plataforma es local/dev-only en esta fase.
+
+No hay login ni roles por decisión de MVP local.
+
+No debe exponerse públicamente sin autenticación, autorización, auditoría, rate limiting, protección CSRF si aplica y secret manager.
+
+No existe endpoint funcional de reinicio de plataforma.
+
+No implementar reinicio desde UI/API. Si un cambio requiere reinicio, el usuario lo hace manualmente desde terminal.
+
+`src/security/prompt-injection-policy.js` y `src/security/file-upload-policy.js` son políticas existentes y deben conservarse.
+
+`.env`, `data/` y `*.log` deben permanecer fuera del repositorio.
 
 Uso y presupuesto
 
@@ -234,6 +264,10 @@ No es agente.
 No se registra en registry.
 
 API keys no deben exponerse completas.
+
+Settings LLM permite configurar proveedor y modelo LLM. `/settings/config` debe devolver `provider`, `displayName`, `model`, estado de API key, preview enmascarado y fuente, pero nunca la API key completa.
+
+El input de API key en UI no debe precargarse con el secreto real. Si el operador guarda LLM con API key vacía, se conserva la key existente; solo se reemplaza cuando ingresa una nueva.
 
 data/platform-settings.json es runtime local y no debe entrar al commit.
 
@@ -265,7 +299,19 @@ No crear endpoints de restart ni llamadas frontend para reiniciar el servidor.
 
 Contrato de interacción de agentes
 
-Todo agente puede definir una sección `interaction` para declarar cómo recibe información y cómo entrega resultados.
+Todo agente usa configuración funcional de interacción mediante `io`, `inputMode`, `outputMode` y `responsePreset`.
+
+Esta configuración se administra desde edición y backend. La pantalla de detalle/uso del agente debe mostrar solo lo necesario para ejecutar el agente: instrucciones funcionales, campos de entrada, acción de ejecución, loader y resultado.
+
+`inputContract` y `outputSchema` son contratos técnicos internos generados automáticamente desde `io`.
+
+No deben mostrarse ni editarse en pantallas de agentes para usuarios QA funcionales.
+
+`outputMode = screen` debe mostrar un documento Markdown listo para copiar y pegar.
+
+El JSON técnico debe quedar solo en una sección de diagnóstico o respuesta técnica colapsada.
+
+La estructura legacy `interaction` puede existir por compatibilidad, pero la configuración funcional nueva debe resolverse desde `io`.
 
 No todos los agentes usan archivos. Los agentes de archivo deben declarar `inputMode` y `acceptedInputTypes` con formatos permitidos como `json`, `csv`, `html`, `markdown`, `pdf` o `text`.
 
@@ -277,11 +323,17 @@ Configuración LLM por agente
 
 Todo agente debe tener `llmSettings` o usar defaults seguros del runtime.
 
+La plataforma prioriza calidad por defecto: nuevos agentes usan `responseDetailLevel = extensive`, `maxOutputTokens = 5000` y precisión `temperature = 0.1`.
+
+El usuario puede bajar estos valores si necesita reducir consumo.
+
 No usar valores sin validar. `maxOutputTokens` controla costo y tamaño de respuesta, y debe estar entre 300 y 8000.
 
 `temperature` debe mantenerse baja para QA; se recomienda `0.1` a `0.3`.
 
 `budgetPolicy` debe estar activo por defecto y no debe desactivarse desde UI sin una decisión explícita de gobernanza.
+
+Las capacidades default deben ser robustas y orientadas a agentes QA especialistas.
 
 data/
 
@@ -331,9 +383,11 @@ La gobernanza de agentes es interna y generada por la plataforma. No debe mostra
 
 La administración de estado se controla con botones de activar/desactivar, no con campos manuales en formularios.
 
-Los contratos técnicos de entrada y salida son internos. No deben mostrarse como campos editables para usuarios QA funcionales. La UI debe usar campos funcionales de entrada/salida y el backend debe generar `inputContract` y `outputSchema` automáticamente desde `io`.
+Los contratos técnicos de entrada y salida son internos. No deben mostrarse como tarjetas ni campos editables para usuarios QA funcionales. La UI debe usar campos funcionales de entrada/salida y el backend debe generar `inputContract` y `outputSchema` automáticamente desde `io`.
 
 La UI de creación de agentes debe ser funcional y no técnica. `userInstructions`, `inputContract`, `outputSchema`, `governance`, checklist, `status`, `statusLabel` y `navigation.order` son responsabilidad interna de la plataforma y no deben mostrarse como campos editables al usuario QA funcional.
+
+Los campos internos del agente como skill, prompt oficial, contrato y checklist son responsabilidad de la plataforma. La UI puede recibir intención funcional del usuario, pero el backend debe generar o normalizar estos artefactos para mantener gobierno y seguridad.
 
 La sección de entrada/salida debe pedir solo modo de entrada, modo de salida y tipo de respuesta esperada. Los campos detallados de salida solo pueden aparecer cuando el usuario elige `Personalizado`.
 
@@ -341,7 +395,7 @@ Todo agente con `outputMode` de pantalla debe devolver una salida documental leg
 
 Si falta información crítica para cumplir una solicitud de forma confiable, el runtime debe preguntar primero. La respuesta debe incluir máximo 5 preguntas concretas y accionables, puede agregar un análisis preliminar breve, y no debe generar un informe completo hasta recibir el contexto faltante.
 
-La sección `Preguntas abiertas` debe contener preguntas reales. No usar frases genéricas como `No se cuenta con información suficiente para determinarlo` dentro de esa sección; si no hay preguntas reales, omitirla.
+La sección `Preguntas abiertas` debe contener preguntas reales. No usar placeholders genéricos de información insuficiente dentro de esa sección; si no hay preguntas reales, omitirla.
 
 El runtime visible debe filtrar secciones vacías o placeholders. En modo `Necesito más información`, no se deben renderizar secciones documentales incompletas como informe, criterios, escenarios, riesgos o recomendaciones.
 

@@ -5,6 +5,7 @@ import {
   buildAgentLlmSettingsFromInput,
   normalizeAgentLlmSettings
 } from '../agents/shared/llm-settings.js';
+import { normalizeAgentCapabilities } from '../agents/shared/agent-defaults.js';
 import { getDefaultAgentGovernance } from '../agents/shared/governance.js';
 import {
   buildInputContractFromIO,
@@ -422,15 +423,16 @@ export function updateAgent(agentId, payload) {
   const contractMarkdown = validateMarkdownField(input.contractMarkdown, 'contractMarkdown', 30, errors);
   const readmeMarkdown = validateMarkdownField(input.readmeMarkdown, 'readmeMarkdown', 20, errors);
 
-  const capabilities = toList(input.capabilities);
+  const capabilities = normalizeAgentCapabilities(toList(input.capabilities));
   const governance = Array.isArray(profile.governance) && profile.governance.length > 0
     ? profile.governance
     : getDefaultAgentGovernance();
+  const currentLlmSettings = normalizeAgentLlmSettings(profile.llmSettings || {});
   const llmSettings = buildAgentLlmSettingsFromInput({
-    responseDetailLevel: input.responseDetailLevel,
-    maxOutputTokens: input.maxOutputTokens,
+    responseDetailLevel: input.responseDetailLevel ?? currentLlmSettings.responseDetailLevel,
+    maxOutputTokens: input.maxOutputTokens ?? currentLlmSettings.maxOutputTokens,
     temperaturePreset: input.temperaturePreset,
-    temperature: input.temperature
+    temperature: input.temperature ?? currentLlmSettings.temperature
   }, errors);
   const io = validateAgentIO({
     inputMode: input.io?.inputMode ?? input.inputMode ?? inferAgentIO(profile).inputMode,

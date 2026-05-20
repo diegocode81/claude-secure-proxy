@@ -48,8 +48,14 @@ export function renderSettingsView() {
               <option value="gemini">gemini</option>
               <option value="deepseek">deepseek</option>
               <option value="openai">openai</option>
+              <option value="local">local</option>
               <option value="other">other</option>
             </select>
+          </div>
+          <div class="field">
+            <label for="model">Modelo LLM</label>
+            <select id="model" name="model" required></select>
+            <p class="form-note">Modelo específico que usará la plataforma para llamadas al LLM. Puedes cambiarlo según costo, velocidad o calidad.</p>
           </div>
           <div class="field">
             <label for="displayName">Nombre visible del LLM</label>
@@ -62,7 +68,8 @@ export function renderSettingsView() {
             <p class="form-note">API key actual: <span id="apiKeyPreview">No configurada</span></p>
             <p class="form-note">Fuente actual de API key: <span id="apiKeySource">not-configured</span></p>
             <p class="form-note" id="apiKeySourceHelp">No hay API key válida configurada. Las funciones que llamen al LLM no podrán ejecutarse.</p>
-            <p class="form-note">No compartas ni pegues API keys reales en ambientes no seguros. La API key no se muestra completa después de guardarse.</p>
+            <p class="form-note">La API key no se muestra completa por seguridad. Deja este campo vacío si no quieres reemplazarla.</p>
+            <p class="form-note">La API key no se carga completa en pantalla por seguridad.</p>
           </div>
           <div class="actions">
             <button type="submit">Guardar configuración LLM</button>
@@ -192,21 +199,40 @@ export function renderSettingsView() {
           .filter(Boolean);
       }
 
+      function renderModelOptions(modelOptions, provider, selectedModel) {
+        const modelSelect = document.getElementById('model');
+        const options = modelOptions?.[provider] || modelOptions?.other || ['custom-model'];
+        const values = options.includes(selectedModel) || !selectedModel
+          ? options
+          : [selectedModel, ...options];
+
+        modelSelect.innerHTML = '';
+        for (const model of values) {
+          const option = document.createElement('option');
+          option.value = model;
+          option.textContent = model;
+          modelSelect.appendChild(option);
+        }
+        modelSelect.value = selectedModel || values[0];
+      }
+
       async function loadSettings() {
         const response = await fetch(configUrl);
         const config = await response.json();
         const proxy = config.proxy || {};
+        window.currentLlmModelOptions = config.llmModelOptions || {};
 
         document.getElementById('monthlyBudgetUsd').value = config.dashboard.monthlyBudgetUsd;
         document.getElementById('alertThresholdUsd').value = config.dashboard.alertThresholdUsd;
         document.getElementById('provider').value = config.llm.provider;
+        renderModelOptions(config.llmModelOptions, config.llm.provider, config.llm.model);
         document.getElementById('displayName').value = config.llm.displayName;
         document.getElementById('apiKey').value = '';
         document.getElementById('apiKeyStatus').textContent = config.llm.apiKeyConfigured
           ? 'Configurada'
           : 'No configurada';
         document.getElementById('apiKeyPreview').textContent = config.llm.apiKeyConfigured
-          ? config.llm.apiKeyPreview
+          ? (config.llm.apiKeyMasked || config.llm.apiKeyPreview)
           : 'No configurada';
         document.getElementById('apiKeySource').textContent = config.llm.apiKeySource || 'not-configured';
         const sourceHelp = {
@@ -226,6 +252,12 @@ export function renderSettingsView() {
         renderList('protectedEndpoints', proxy.protectedEndpoints);
         renderList('blockedFindingTypes', proxy.blockedFindingTypes);
       }
+
+      document.getElementById('provider').addEventListener('change', () => {
+        const provider = document.getElementById('provider').value;
+        const currentOptions = window.currentLlmModelOptions || {};
+        renderModelOptions(currentOptions, provider, '');
+      });
 
       document.getElementById('dashboard-settings-form').addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -264,6 +296,7 @@ export function renderSettingsView() {
         const apiKey = document.getElementById('apiKey').value;
         const payload = {
           provider: document.getElementById('provider').value,
+          model: document.getElementById('model').value,
           displayName: document.getElementById('displayName').value,
           apiKey
         };

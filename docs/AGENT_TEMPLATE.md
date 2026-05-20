@@ -93,7 +93,7 @@ export const agentProfile = {
 };
 ```
 
-`inputContract` y `outputSchema` son contratos técnicos internos. La UI no debe mostrarlos como campos editables para usuarios QA funcionales. El backend los genera automáticamente desde `io`:
+`inputContract` y `outputSchema` son contratos técnicos internos. La UI no debe mostrarlos como tarjetas ni campos editables para usuarios QA funcionales. El backend los genera automáticamente desde `io`:
 
 - `io.inputMode`: `text`, `file` o `text_and_file`.
 - `io.outputMode`: `screen`, `download` o `screen_and_download`.
@@ -134,6 +134,10 @@ Debe documentar:
 - riesgos conocidos,
 - reglas de seguridad.
 
+Para agentes generados con Sugerencia IA, el skill debe ser especialista y suficientemente detallado. Debe incluir propósito especializado, alcance, fuera de alcance, capacidades QA, evidencia esperada, manejo de información incompleta, riesgos de uso y criterios de calidad.
+
+En creación desde UI, `skill.md` se genera por backend desde la intención funcional del usuario. El usuario final no necesita editar `skillMarkdown`.
+
 ## `prompt.md`
 
 Debe documentar el prompt oficial.
@@ -145,6 +149,10 @@ Reglas:
 - No debe pedir saltarse sanitización.
 - No debe pedir saltarse presupuesto.
 - No se debe leer dinámicamente desde runtime.
+
+El prompt oficial debe ser robusto: rol, objetivo, instrucciones de análisis, reglas de seguridad, manejo de incertidumbre, formato de salida y estilo. Si falta contexto crítico, debe pedir hasta 5 preguntas concretas antes de generar un informe completo.
+
+En creación desde UI, `prompt.md` se genera por backend con una plantilla segura. Si Sugerencia IA devuelve contenido insuficiente, se usan defaults gobernados.
 
 ## `contract.md`
 
@@ -158,6 +166,10 @@ Debe documentar:
 - campos opcionales,
 - política de campos desconocidos,
 - ejemplos seguros que no llamen LLM real.
+
+El contrato documentado debe ser claro para desarrolladores y QA. Debe explicar entrada esperada, entrada mínima, salida esperada, estados posibles, errores funcionales y ejemplos seguros, incluyendo un ejemplo de entrada insuficiente.
+
+En creación desde UI, `contract.md` se genera por backend a partir de la configuración funcional de entrada/salida. El usuario no edita contratos técnicos.
 
 ## `README.md`
 
@@ -196,7 +208,7 @@ Reglas:
 
 ## Gobernanza
 
-`governance` se genera automáticamente desde la plataforma usando reglas internas estándar. No es editable desde la UI de creación ni edición de agentes.
+`governance` se genera automáticamente desde la plataforma usando reglas internas estándar. Es interno: no se muestra ni se edita desde la UI de creación, edición o detalle de agentes.
 
 Antes de activar un agente:
 
@@ -217,9 +229,9 @@ Todo agente debe definir `llmSettings` o usar los defaults seguros del runtime:
 
 ```js
 llmSettings: {
-  responseDetailLevel: 'standard',
-  maxOutputTokens: 1500,
-  temperature: 0.2,
+  responseDetailLevel: 'extensive',
+  maxOutputTokens: 5000,
+  temperature: 0.1,
   budgetPolicy: {
     enforceMonthlyBudget: true,
     rejectIfEstimatedCostExceedsRemainingBudget: true
@@ -233,6 +245,10 @@ Reglas:
 - `maxOutputTokens`: mínimo 300, máximo 8000.
 - `temperature`: mínimo 0, máximo 1. Para QA se recomienda baja.
 - `budgetPolicy` debe permanecer activo por defecto.
+
+La plataforma prioriza calidad por defecto: nuevos agentes nacen con respuesta `extensive`, `maxOutputTokens` 5000 y precisión `temperature` 0.1. El usuario puede bajar estos valores si necesita reducir consumo.
+
+Las capacidades por defecto deben ser robustas y orientadas a agentes QA especialistas.
 
 ## Checklist de Preparación
 

@@ -47,7 +47,7 @@ export function normalizeInteraction(rawInteraction = {}) {
     outputMode,
     downloadableOutput,
     outputFileNamePattern: downloadableOutput || ['downloadable-report', 'screen-and-download'].includes(outputMode)
-      ? (outputFileNamePattern || '<agent-id>-report-<timestamp>.md')
+      ? (outputFileNamePattern || '<agent-id>-report-<timestamp>.docx')
       : outputFileNamePattern,
     instructions
   };

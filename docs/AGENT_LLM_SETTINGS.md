@@ -18,9 +18,9 @@
 
 ```js
 llmSettings: {
-  responseDetailLevel: 'standard',
-  maxOutputTokens: 1500,
-  temperature: 0.2,
+  responseDetailLevel: 'extensive',
+  maxOutputTokens: 5000,
+  temperature: 0.1,
   budgetPolicy: {
     enforceMonthlyBudget: true,
     rejectIfEstimatedCostExceedsRemainingBudget: true
@@ -42,7 +42,9 @@ llmSettings: {
 | Análisis QA normal | `standard` | 1500 | 0.2 |
 | Requerimientos o casos de prueba | `detailed` | 2500-3000 | 0.2 |
 | Reportes gerenciales o performance/k6 | `detailed` | 3000 | 0.2 |
-| Análisis documental extenso | `extensive` | 5000 | 0.2 |
+| Análisis documental extenso | `extensive` | 5000 | 0.1-0.2 |
+
+Los agentes nuevos creados desde UI usan por defecto `extensive`, `5000` tokens y temperatura `0.1` para priorizar calidad. El usuario puede bajar estos valores si necesita reducir consumo.
 
 ## Ejemplo QA Log
 

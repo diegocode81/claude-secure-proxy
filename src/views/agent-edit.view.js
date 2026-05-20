@@ -1,5 +1,7 @@
 import { escapeHtml, renderLayout } from './layout.js';
 import { renderLoadingIndicator } from './shared/loading.view.js';
+import { normalizeAgentCapabilities } from '../agents/shared/agent-defaults.js';
+import { normalizeAgentLlmSettings } from '../agents/shared/llm-settings.js';
 
 function renderLines(items) {
   return escapeHtml((Array.isArray(items) ? items : []).join('\n'));
@@ -42,7 +44,7 @@ export function renderAgentEditView(editData) {
     outputMode: interaction.outputMode || 'screen',
     outputFields: ['summary', 'data', 'risks', 'recommendations', 'openQuestions']
   };
-  const llmSettings = editData.llmSettings || {};
+  const llmSettings = normalizeAgentLlmSettings(editData.llmSettings || {});
   const temperaturePreset = Number(llmSettings.temperature) <= 0.15
     ? 'precise'
     : Number(llmSettings.temperature) >= 0.6
@@ -73,10 +75,6 @@ export function renderAgentEditView(editData) {
           <div class="metric-label">execution.mode</div>
           <p><code>${escapeHtml(execution.mode || 'runtime-disabled')}</code></p>
         </div>
-        <div>
-          <div class="metric-label">runtimeEndpoint</div>
-          <p><code>${escapeHtml(execution.runtimeEndpoint || `/agents/${editData.id}/run`)}</code></p>
-        </div>
       </div>
       <p class="form-note">La edición no activa el agente ni llama al LLM. Para activar ejecución usa el botón Activar agente después de completar revisión, pruebas, sanitización y presupuesto.</p>
     </section>
@@ -99,12 +97,12 @@ export function renderAgentEditView(editData) {
 
         <div class="field">
           <label for="capabilities">Capacidades</label>
-          <textarea id="capabilities" name="capabilities" required>${renderLines(editData.capabilities)}</textarea>
-          <div class="form-note">Lista de cosas que el agente puede hacer. Usa una capacidad por línea.</div>
+          <textarea id="capabilities" name="capabilities" required>${renderLines(normalizeAgentCapabilities(editData.capabilities))}</textarea>
+          <div class="form-note">Lista las capacidades principales del agente. La plataforma propone capacidades QA robustas por defecto; puedes ajustarlas según el objetivo del agente.</div>
         </div>
 
         <div class="field">
-          <h2>Entrada y salida del agente</h2>
+          <h2>Configuración funcional del agente</h2>
           <div class="form-note">Define cómo el usuario entregará información al agente y qué tipo de respuesta espera. La plataforma generará automáticamente las instrucciones y contratos internos.</div>
         </div>
 
@@ -158,17 +156,17 @@ export function renderAgentEditView(editData) {
           <div>
             <label for="responseDetailLevel">Nivel de detalle de respuesta</label>
             <select id="responseDetailLevel" name="responseDetailLevel">
-              ${renderOption('brief', 'Breve', llmSettings.responseDetailLevel || 'standard')}
-              ${renderOption('standard', 'Estándar', llmSettings.responseDetailLevel || 'standard')}
-              ${renderOption('detailed', 'Detallado', llmSettings.responseDetailLevel || 'standard')}
-              ${renderOption('extensive', 'Extenso', llmSettings.responseDetailLevel || 'standard')}
+              ${renderOption('brief', 'Breve', llmSettings.responseDetailLevel)}
+              ${renderOption('standard', 'Estándar', llmSettings.responseDetailLevel)}
+              ${renderOption('detailed', 'Detallado', llmSettings.responseDetailLevel)}
+              ${renderOption('extensive', 'Extenso', llmSettings.responseDetailLevel)}
             </select>
-            <div class="form-note">Más detalle puede consumir más tokens.</div>
+            <div class="form-note">Define qué tan completa debe ser la respuesta. Por defecto se usa Extenso para priorizar análisis QA completos y listos para revisión.</div>
           </div>
           <div>
             <label for="maxOutputTokens">Máximo de tokens de respuesta</label>
-            <input id="maxOutputTokens" name="maxOutputTokens" type="number" min="300" max="8000" value="${escapeHtml(String(llmSettings.maxOutputTokens || 1500))}">
-            <div class="form-note">Debe estar entre 300 y 8000.</div>
+            <input id="maxOutputTokens" name="maxOutputTokens" type="number" min="300" max="8000" value="${escapeHtml(String(llmSettings.maxOutputTokens))}">
+            <div class="form-note">Controla la longitud máxima de la respuesta. El default de 5000 permite informes QA completos; puedes bajarlo si deseas reducir consumo.</div>
           </div>
         </div>
 
@@ -179,7 +177,7 @@ export function renderAgentEditView(editData) {
             ${renderOption('balanced', 'Balanceada', temperaturePreset)}
             ${renderOption('creative', 'Creativa', temperaturePreset)}
           </select>
-          <div class="form-note">Para QA se recomienda Precisa o Balanceada. La política de presupuesto permanece activa.</div>
+          <div class="form-note">Define la variación de la respuesta. Para QA se usa Precisa por defecto para mejorar consistencia, trazabilidad y reducir invención.</div>
         </div>
 
         <div class="field">

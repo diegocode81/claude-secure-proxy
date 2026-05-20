@@ -280,6 +280,25 @@ export function renderLayout({ title, activePath, content }) {
       margin-bottom: 24px;
     }
 
+    .agent-header-controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .agent-header-controls .actions {
+      margin-top: 0;
+      justify-content: flex-end;
+    }
+
+    .agent-header-controls .loading-indicator,
+    .agent-header-controls .form-note {
+      flex-basis: 100%;
+      text-align: right;
+    }
+
     h1 {
       margin: 0 0 6px;
       font-size: 28px;
@@ -364,6 +383,12 @@ export function renderLayout({ title, activePath, content }) {
       grid-template-columns: minmax(240px, 1fr) minmax(240px, 1fr);
       gap: 16px;
       margin-bottom: 16px;
+    }
+
+    .agent-detail-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 18px;
     }
 
     .panel {
@@ -604,7 +629,7 @@ export function renderLayout({ title, activePath, content }) {
       padding-top: 18px;
     }
 
-    #agent-visible-result-content {
+    .agent-result-box {
       background: #f8fafc;
       border: 1px solid #dfe5ec;
       border-radius: 8px;
@@ -613,8 +638,12 @@ export function renderLayout({ title, activePath, content }) {
       font-size: 14px;
       line-height: 1.55;
       margin-top: 12px;
+      max-height: 520px;
+      overflow-x: auto;
+      overflow-y: auto;
       padding: 16px;
       white-space: pre-wrap;
+      word-break: break-word;
     }
 
     .technical-result {
@@ -629,10 +658,21 @@ export function renderLayout({ title, activePath, content }) {
     @media (max-width: 760px) {
       .top-nav,
       .page-header,
+      .agent-detail-grid,
       .summary {
         display: grid;
         grid-template-columns: 1fr;
         align-items: start;
+      }
+
+      .agent-header-controls,
+      .agent-header-controls .actions {
+        justify-content: flex-start;
+      }
+
+      .agent-header-controls .loading-indicator,
+      .agent-header-controls .form-note {
+        text-align: left;
       }
 
       .nav-links {

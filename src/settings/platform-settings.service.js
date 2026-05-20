@@ -5,7 +5,27 @@ import { withRefresh } from '../platform/platform-refresh.service.js';
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const SETTINGS_FILE = path.join(DATA_DIR, 'platform-settings.json');
 
-const ALLOWED_PROVIDERS = ['claude', 'gemini', 'deepseek', 'openai', 'other'];
+const ALLOWED_PROVIDERS = ['claude', 'gemini', 'deepseek', 'openai', 'local', 'other'];
+const DEFAULT_LLM_MODELS = {
+  claude: 'claude-3-5-sonnet-latest',
+  gemini: 'gemini-1.5-pro',
+  deepseek: 'deepseek-chat',
+  openai: 'gpt-4o',
+  local: 'local-model',
+  other: 'custom-model'
+};
+const LLM_MODEL_OPTIONS = {
+  claude: [
+    'claude-3-5-sonnet-latest',
+    'claude-3-5-haiku-latest',
+    'claude-3-opus-latest'
+  ],
+  gemini: ['gemini-1.5-pro', 'gemini-1.5-flash'],
+  deepseek: ['deepseek-chat', 'deepseek-reasoner'],
+  openai: ['gpt-4o', 'gpt-4o-mini'],
+  local: ['local-model'],
+  other: ['custom-model']
+};
 const LLM_ENV_KEY_NAMES = ['LLM_API_KEY', 'ANTHROPIC_API_KEY', 'CLAUDE_API_KEY'];
 const INVALID_LLM_KEY_MESSAGE = 'La API key del LLM no parece válida. No uses claves de prueba, placeholders ni valores enmascarados.';
 const PROTECTED_PROXY_FIELDS = [
@@ -43,6 +63,7 @@ const DEFAULT_SETTINGS = {
   llm: {
     provider: 'claude',
     displayName: 'LLM actual',
+    model: DEFAULT_LLM_MODELS.claude,
     apiKey: ''
   },
   proxy: {
@@ -88,16 +109,21 @@ function normalizeSettings(settings) {
     ? Number(dashboard.alertThresholdUsd)
     : fallbackAlertThresholdUsd;
 
+  const provider = ALLOWED_PROVIDERS.includes(llm.provider) ? llm.provider : defaults.llm.provider;
+
   return {
     dashboard: {
       monthlyBudgetUsd: normalizeMoney(monthlyBudgetUsd),
       alertThresholdUsd: normalizeMoney(alertThresholdUsd)
     },
     llm: {
-      provider: ALLOWED_PROVIDERS.includes(llm.provider) ? llm.provider : defaults.llm.provider,
+      provider,
       displayName: typeof llm.displayName === 'string' && llm.displayName.trim()
         ? llm.displayName.trim()
         : defaults.llm.displayName,
+      model: typeof llm.model === 'string' && llm.model.trim()
+        ? llm.model.trim()
+        : getDefaultLlmModelForProvider(provider),
       apiKey: typeof llm.apiKey === 'string' ? llm.apiKey : ''
     },
     proxy: {
@@ -112,7 +138,8 @@ function normalizeSettings(settings) {
       maxContextChars: Number(proxy.maxContextChars || defaults.proxy.maxContextChars),
       ...DEFAULT_PROXY_PROTECTIONS
     },
-    allowedProviders: ALLOWED_PROVIDERS
+    allowedProviders: ALLOWED_PROVIDERS,
+    llmModelOptions: LLM_MODEL_OPTIONS
   };
 }
 
@@ -152,6 +179,10 @@ function maskApiKey(apiKey) {
   }
 
   return `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`;
+}
+
+export function getDefaultLlmModelForProvider(provider) {
+  return DEFAULT_LLM_MODELS[provider] || DEFAULT_LLM_MODELS.claude;
 }
 
 export function isValidConfiguredLlmApiKey(apiKey) {
@@ -221,12 +252,15 @@ function createPublicSettings(settings) {
     llm: {
       provider: settings.llm.provider,
       displayName: settings.llm.displayName,
+      model: settings.llm.model,
       apiKeyConfigured: Boolean(effectiveApiKey.apiKey),
+      apiKeyMasked: maskApiKey(effectiveApiKey.apiKey),
       apiKeyPreview: maskApiKey(effectiveApiKey.apiKey),
       apiKeySource: effectiveApiKey.source
     },
     proxy: settings.proxy,
     allowedProviders: settings.allowedProviders,
+    llmModelOptions: settings.llmModelOptions,
     sentToLLM: false,
     sentToClaude: false
   };
@@ -252,6 +286,7 @@ export function getLlmRuntimeSettings() {
   return {
     provider: settings.llm.provider,
     displayName: settings.llm.displayName,
+    model: settings.llm.model || getDefaultLlmModelForProvider(settings.llm.provider),
     apiKey: effectiveApiKey.apiKey,
     apiKeySource: effectiveApiKey.source,
     apiKeyConfigured: Boolean(effectiveApiKey.apiKey)
@@ -388,6 +423,7 @@ export function saveLlmSettings(input) {
   const settings = readRawSettings();
   const provider = typeof input?.provider === 'string' ? input.provider.trim() : '';
   const displayName = typeof input?.displayName === 'string' ? input.displayName.trim() : '';
+  const model = typeof input?.model === 'string' ? input.model.trim() : '';
   const providedApiKey = typeof input?.apiKey === 'string' ? input.apiKey.trim() : '';
   const nextApiKey = providedApiKey || settings.llm.apiKey;
   const errors = [];
@@ -398,6 +434,10 @@ export function saveLlmSettings(input) {
 
   if (displayName.length < 2 || displayName.length > 80) {
     errors.push('displayName must be between 2 and 80 characters.');
+  }
+
+  if (model.length < 2 || model.length > 120) {
+    errors.push('model must be between 2 and 120 characters.');
   }
 
   if (providedApiKey && (providedApiKey.length < 8 || providedApiKey.length > 500)) {
@@ -415,6 +455,7 @@ export function saveLlmSettings(input) {
   settings.llm = {
     provider,
     displayName,
+    model,
     apiKey: nextApiKey
   };
   writeSettings(settings);
@@ -425,6 +466,7 @@ export function saveLlmSettings(input) {
     sentToLLM: false,
     sentToClaude: false,
     apiKeyConfigured: Boolean(effectiveApiKey.apiKey),
+    apiKeyMasked: maskApiKey(effectiveApiKey.apiKey),
     apiKeyPreview: maskApiKey(effectiveApiKey.apiKey),
     apiKeySource: effectiveApiKey.source,
     config: createPublicSettings(settings)

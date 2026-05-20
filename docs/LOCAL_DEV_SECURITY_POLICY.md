@@ -41,6 +41,12 @@ Estos archivos no deben entrar al repositorio:
 
 La UI y endpoints deben mostrar solo previews seguros, por ejemplo primeros 4 y ultimos 4 caracteres.
 
+## Configuracion LLM
+
+La pantalla `/settings` permite configurar proveedor y modelo LLM de la plataforma. El modelo se guarda como configuracion operativa y el runtime lo usa para llamadas al proveedor configurado cuando el cliente existe.
+
+La API key nunca debe devolverse completa desde `/settings/config` ni precargarse en el formulario. El campo de API key se usa solo para reemplazarla: si el operador lo deja vacio al guardar, la plataforma conserva la key existente o la fuente de entorno configurada.
+
 ## Antes de Produccion
 
 Antes de cualquier despliegue productivo se requiere:

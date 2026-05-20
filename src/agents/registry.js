@@ -1,5 +1,4 @@
 import { qaLogAnalystProfile } from './qa-log-analyst/profile.js';
-import { agentProfile as qaPruebasProfile } from './qa-pruebas/profile.js';
 import { agentProfile as qaChistesProfile } from './qa-chistes/profile.js';
 
 export const AGENT_MODULE_FILE_STANDARD = [
@@ -27,7 +26,6 @@ export const AGENT_PROFILE_REQUIRED_FIELDS = [
 
 export const agentRegistry = [
   qaLogAnalystProfile,
-  qaPruebasProfile,
   qaChistesProfile
 ];
 

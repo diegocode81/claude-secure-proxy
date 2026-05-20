@@ -21,7 +21,7 @@ La creación no llama LLM y no activa runtime real.
 
 No se muestran campos de gobernanza interna en creación.
 
-No se muestran contratos técnicos JSON en creación. El usuario QA funcional define entrada y salida con campos simples, y la plataforma genera internamente `inputContract` y `outputSchema`.
+No se muestran contratos técnicos JSON en creación, edición ni detalle. El usuario QA funcional define entrada y salida con campos simples, y la plataforma genera internamente `inputContract` y `outputSchema`.
 
 La plataforma genera automáticamente:
 
@@ -44,6 +44,8 @@ El formulario muestra una sección funcional:
 - Tipo de respuesta esperada: análisis estándar QA, criterios y escenarios QA, informe gerencial, análisis técnico o personalizado.
 
 Solo la opción Personalizado muestra opciones avanzadas de salida. El backend guarda una estructura `io` en `profile.js`, genera instrucciones de uso y genera los contratos técnicos internos a partir de ella. El frontend no debe enviar contratos JSON editables ni instrucciones internas editables.
+
+La pantalla de detalle/uso del agente no muestra esta metadata de configuración. Solo debe presentar la instrucción funcional, los campos necesarios para enviar entrada, el botón de ejecución, loader y resultado.
 
 ## Validaciones
 
@@ -139,3 +141,27 @@ El JSON técnico queda solo para diagnóstico en la respuesta técnica colapsada
 Sugerencia IA, creación y ejecución de agentes muestran estado de procesamiento para evitar doble envío y mejorar experiencia.
 
 Los botones quedan deshabilitados mientras la plataforma espera respuesta del backend o del LLM. Al terminar, se restaura el texto original y se muestra resultado o error funcional.
+
+## Sugerencia IA de alta calidad
+
+Sugerencia IA genera una definición inicial robusta para agentes QA especialistas.
+
+Debe priorizar precisión, trazabilidad, seguridad, manejo de incertidumbre, contratos claros y utilidad real sobre brevedad.
+
+La sugerencia puede producir `skill`, `prompt` y `contract` más extensos cuando eso mejore la calidad del agente. Aun así, la sugerencia no crea archivos, no activa runtime y debe ser revisada por el usuario antes de crear el agente.
+
+## Defaults de calidad
+
+La plataforma prioriza calidad de respuesta por defecto en agentes nuevos.
+
+Nuevos agentes usan `Extenso`, `5000` tokens máximos y precisión `Precisa` para mejorar completitud, trazabilidad y consistencia. El usuario puede bajar estos valores si necesita reducir consumo.
+
+El campo de capacidades inicia con una lista robusta orientada a agentes QA especialistas. Si Sugerencia IA entrega capacidades válidas, se respetan; si faltan o son demasiado débiles, la plataforma completa con defaults QA.
+
+## Artefactos internos generados
+
+El usuario no necesita editar `skillMarkdown`, `promptMarkdown`, `contractMarkdown` ni `readinessChecklistMarkdown`.
+
+La plataforma genera automáticamente esos artefactos con plantillas seguras y gobernadas. Si Sugerencia IA no devuelve contenido válido para esos campos, se usan defaults internos.
+
+La creación desde UI no debe fallar por artefactos internos vacíos o demasiado cortos. Solo se bloquea contenido peligroso, secretos o instrucciones explícitas para saltar gobierno, activar runtime o modificar la plataforma.

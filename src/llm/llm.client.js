@@ -32,6 +32,7 @@ export async function callLlm({ instruction, text, maxTokens, temperature } = {}
     instruction,
     text,
     apiKey: settings.apiKey,
+    model: settings.model,
     maxTokens,
     temperature
   });

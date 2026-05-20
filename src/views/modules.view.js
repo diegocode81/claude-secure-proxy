@@ -86,12 +86,6 @@ function renderModuleCard(module) {
           ${renderList(module.capabilities, 'Capacidades no definidas')}
         </ul>
       </div>
-      <div class="field">
-        <div class="metric-label">Reglas básicas de gobierno</div>
-        <ul>
-          ${renderList(module.governance, 'Reglas de gobierno no definidas')}
-        </ul>
-      </div>
     </article>
   `;
 }

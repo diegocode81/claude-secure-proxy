@@ -94,14 +94,6 @@ export function renderQaLogAnalystView() {
           ${renderTextList(profile.capabilities)}
         </ul>
       </div>
-
-      <div class="panel">
-        <h2>Gobierno de IA</h2>
-        <ul>
-          ${renderTextList(profile.governance)}
-        </ul>
-      </div>
-
       ${renderLlmSettings(profile)}
     </section>
   `;

@@ -1,32 +1,30 @@
 export const agentProfile = {
   "id": "qa-chistes",
-  "name": "qa.chistes",
+  "name": "qa chistes",
   "status": "active",
   "statusLabel": "Activo",
-  "description": "Abnaliza si un chiste es bueno malo o regular y dame un informe",
+  "description": "analizar el chiste contando y generar el informe",
   "usage": "Agente creado desde la UI de creación gobernada. La ejecución real permanece deshabilitada hasta aprobación.",
   "capabilities": [
-    "Clasificar chistes en categorías: bueno, regular, malo según criterios objetivos",
-    "Identificar estructura narrativa, timing y elementos de sorpresa",
-    "Detectar riesgos de comunicación: contenido ofensivo, sesgos, ambigüedades",
-    "Evaluar alineación con audiencia objetivo y contexto de uso",
-    "Proporcionar recomendaciones de mejora basadas en análisis estructural",
-    "Generar reportes estructurados con justificación de calificación",
-    "Solicitar contexto cuando falte información sobre audiencia o propósito"
+    "Analizar estructura narrativa de chistes (setup, desarrollo, remate)",
+    "Validar coherencia lógica interna del contenido humorístico",
+    "Identificar dependencias culturales, lingüísticas o contextuales",
+    "Detectar ambigüedades que afecten comprensibilidad",
+    "Evaluar riesgos de contenido ofensivo o inapropiado",
+    "Generar informe QA con hallazgos, riesgos y recomendaciones",
+    "Solicitar contexto adicional cuando la información sea insuficiente",
+    "Diferenciar entre evidencia textual y suposiciones interpretativas"
   ],
   "io": {
     "inputMode": "text",
     "outputMode": "screen",
-    "responsePreset": "custom",
+    "responsePreset": "qa_acceptance_and_scenarios",
     "outputFields": [
       "summary",
-      "data",
-      "risks",
-      "recommendations",
-      "openQuestions",
       "acceptanceCriteria",
       "testScenarios",
-      "executiveReport"
+      "risks",
+      "openQuestions"
     ]
   },
   "inputContract": {
@@ -54,24 +52,18 @@ export const agentProfile = {
   "outputSchema": {
     "fields": [
       "summary",
-      "data",
-      "risks",
-      "recommendations",
-      "openQuestions",
       "acceptanceCriteria",
       "testScenarios",
-      "executiveReport"
+      "risks",
+      "openQuestions"
     ]
   },
   "outputContract": [
     "summary",
-    "data",
-    "risks",
-    "recommendations",
-    "openQuestions",
     "acceptanceCriteria",
     "testScenarios",
-    "executiveReport"
+    "risks",
+    "openQuestions"
   ],
   "relatedEndpoints": [
     "/agents/qa-chistes/run"
@@ -83,9 +75,9 @@ export const agentProfile = {
     "legacyEndpoints": []
   },
   "navigation": {
-    "label": "qa.chistes",
+    "label": "qa chistes",
     "path": "/qa-chistes",
-    "order": 30
+    "order": 20
   },
   "governance": [
     "El agente inicia con ejecución deshabilitada",
@@ -109,7 +101,7 @@ export const agentProfile = {
   },
   "llmSettings": {
     "responseDetailLevel": "extensive",
-    "maxOutputTokens": 3000,
+    "maxOutputTokens": 6000,
     "temperature": 0.7,
     "budgetPolicy": {
       "enforceMonthlyBudget": true,

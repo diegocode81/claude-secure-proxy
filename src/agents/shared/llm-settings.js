@@ -12,9 +12,9 @@ export const TEMPERATURE_PRESETS = {
 };
 
 export const DEFAULT_AGENT_LLM_SETTINGS = {
-  responseDetailLevel: 'standard',
-  maxOutputTokens: 1500,
-  temperature: 0.2,
+  responseDetailLevel: 'extensive',
+  maxOutputTokens: 5000,
+  temperature: 0.1,
   budgetPolicy: {
     enforceMonthlyBudget: true,
     rejectIfEstimatedCostExceedsRemainingBudget: true
@@ -74,17 +74,17 @@ export function normalizeAgentLlmSettings(rawSettings = {}) {
 export function validateAgentLlmSettings(rawSettings = {}, errors = []) {
   const source = isPlainObject(rawSettings) ? rawSettings : {};
 
-  if (source.responseDetailLevel && !ALLOWED_DETAIL_LEVELS.includes(source.responseDetailLevel)) {
+  if (source.responseDetailLevel !== undefined && !ALLOWED_DETAIL_LEVELS.includes(source.responseDetailLevel)) {
     errors.push('responseDetailLevel no es válido.');
   }
 
   const maxOutputTokens = Number(source.maxOutputTokens);
-  if ('maxOutputTokens' in source && (!Number.isFinite(maxOutputTokens) || maxOutputTokens < 300 || maxOutputTokens > 8000)) {
+  if (source.maxOutputTokens !== undefined && (!Number.isFinite(maxOutputTokens) || maxOutputTokens < 300 || maxOutputTokens > 8000)) {
     errors.push('maxOutputTokens debe estar entre 300 y 8000.');
   }
 
   const temperature = Number(source.temperature);
-  if ('temperature' in source && (!Number.isFinite(temperature) || temperature < 0 || temperature > 1)) {
+  if (source.temperature !== undefined && (!Number.isFinite(temperature) || temperature < 0 || temperature > 1)) {
     errors.push('temperature debe estar entre 0 y 1.');
   }
 
@@ -123,13 +123,16 @@ export function buildAgentLlmSettingsFromInput(input = {}, errors = []) {
     errors.push('temperaturePreset no es válido.');
   }
 
-  return validateAgentLlmSettings({
-    responseDetailLevel: input.responseDetailLevel,
-    maxOutputTokens: input.maxOutputTokens,
-    temperature,
+  const settings = {
     budgetPolicy: {
       enforceMonthlyBudget: true,
       rejectIfEstimatedCostExceedsRemainingBudget: true
     }
-  }, errors);
+  };
+
+  if (input.responseDetailLevel !== undefined) settings.responseDetailLevel = input.responseDetailLevel;
+  if (input.maxOutputTokens !== undefined) settings.maxOutputTokens = input.maxOutputTokens;
+  if (temperature !== undefined) settings.temperature = temperature;
+
+  return validateAgentLlmSettings(settings, errors);
 }

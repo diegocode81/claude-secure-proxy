@@ -1,15 +1,17 @@
 import { escapeHtml, renderLayout } from './layout.js';
 import { buildExpectedOutputSections } from '../agents/shared/runtime/agent-output-document.js';
+import { normalizeAgentLlmSettings } from '../agents/shared/llm-settings.js';
+import { renderReportDocxDownloadScript } from './shared/report-docx-download.view.js';
 import { renderLoadingIndicator } from './shared/loading.view.js';
 
 function normalizeLlmSettings(profile) {
-  const settings = profile.llmSettings || {};
+  const settings = normalizeAgentLlmSettings(profile.llmSettings || {});
   const budgetPolicy = settings.budgetPolicy || {};
 
   return {
-    responseDetailLevel: settings.responseDetailLevel || 'standard',
-    maxOutputTokens: Number(settings.maxOutputTokens || 1500),
-    temperature: Number(settings.temperature ?? 0.2),
+    responseDetailLevel: settings.responseDetailLevel,
+    maxOutputTokens: Number(settings.maxOutputTokens),
+    temperature: Number(settings.temperature),
     budgetPolicy: {
       enforceMonthlyBudget: budgetPolicy.enforceMonthlyBudget !== false,
       rejectIfEstimatedCostExceedsRemainingBudget: budgetPolicy.rejectIfEstimatedCostExceedsRemainingBudget !== false
@@ -80,12 +82,7 @@ function renderAgentActions(profile) {
   const isProtected = profile.id === 'qa-log-analyst';
 
   if (isProtected) {
-    return `
-      <section class="panel">
-        <h2>Acciones del agente</h2>
-        <p>Agente base protegido por la plataforma. Sus acciones administrativas están bloqueadas.</p>
-      </section>
-    `;
+    return '';
   }
 
   const isActive = profile.status === 'active';
@@ -102,23 +99,19 @@ function renderAgentActions(profile) {
       };
 
   return `
-    <section class="panel">
-      <h2>Acciones del agente</h2>
-      <p>Estas acciones cambian el estado operativo del agente sin llamar LLM ni modificar otros agentes.</p>
-      <div id="agent-action-result" class="field form-note"></div>
-      ${renderLoadingIndicator({
-        id: 'agent-action-loading',
-        message: 'Actualizando estado del agente...',
-        detail: 'La plataforma está procesando la acción solicitada. Esto puede tardar unos segundos.'
-      })}
-      <div class="actions">
-        <a class="button secondary" href="/${escapeHtml(profile.id)}/edit">Editar agente</a>
-        <button type="button" data-agent-action="${escapeHtml(primaryAction.endpoint)}" data-method="${primaryAction.method}">
-          ${escapeHtml(primaryAction.label)}
-        </button>
-        <button type="button" class="danger" id="open-delete-agent-modal">Eliminar agente</button>
-      </div>
-    </section>
+    <div id="agent-action-result" class="form-note"></div>
+    ${renderLoadingIndicator({
+      id: 'agent-action-loading',
+      message: 'Actualizando estado del agente...',
+      detail: 'La plataforma está procesando la acción solicitada. Esto puede tardar unos segundos.'
+    })}
+    <div class="actions">
+      <a class="button secondary" href="/${escapeHtml(profile.id)}/edit">Editar agente</a>
+      <button type="button" data-agent-action="${escapeHtml(primaryAction.endpoint)}" data-method="${primaryAction.method}">
+        ${escapeHtml(primaryAction.label)}
+      </button>
+      <button type="button" class="danger" id="open-delete-agent-modal">Eliminar agente</button>
+    </div>
 
     <div class="modal-backdrop" id="delete-agent-modal" role="dialog" aria-modal="true" aria-labelledby="delete-agent-title">
       <div class="modal">
@@ -211,7 +204,7 @@ function renderInteractionInputs(interaction) {
     <div class="field" id="agent-file-input-wrapper">
       <label for="agent-file-input">Subir archivo</label>
       <input id="agent-file-input" type="file" accept="${escapeHtml(accept)}"${interaction.inputMode === 'multiple-files' ? ' multiple' : ''}>
-      <p class="form-note">Tamaño máximo: 2 MB por archivo. Tipos aceptados: ${escapeHtml(interaction.acceptedInputTypes.join(', '))}.</p>
+      <p class="form-note">Tamaño máximo: 2 MB por archivo.</p>
     </div>
   `;
 
@@ -232,36 +225,14 @@ function renderAgentInteraction(profile) {
   const expectedSections = buildExpectedOutputSections(interaction.outputFields);
   const shouldOfferDownload = interaction.downloadableOutput
     || ['downloadable-report', 'screen-and-download'].includes(interaction.outputMode);
+  const clientInteraction = {
+    inputMode: interaction.inputMode,
+    acceptedInputTypes: interaction.acceptedInputTypes,
+    outputFileNamePattern: interaction.outputFileNamePattern
+  };
 
   return `
     <section class="panel">
-      <h2>Entrada y salida del agente</h2>
-      <div class="summary">
-        <div>
-          <div class="metric-label">Modo de entrada</div>
-          <p><code>${escapeHtml(interaction.inputMode)}</code></p>
-        </div>
-        <div>
-          <div class="metric-label">Tipos aceptados</div>
-          <p>${escapeHtml(interaction.acceptedInputTypes.join(', '))}</p>
-        </div>
-        <div>
-          <div class="metric-label">Modo de salida</div>
-          <p><code>${escapeHtml(interaction.outputMode)}</code></p>
-        </div>
-        <div>
-          <div class="metric-label">Tipo de respuesta esperada</div>
-          <p><code>${escapeHtml(interaction.responsePreset)}</code></p>
-        </div>
-        <div>
-          <div class="metric-label">Descarga habilitada</div>
-          <p><code>${escapeHtml(String(shouldOfferDownload))}</code></p>
-        </div>
-        <div>
-          <div class="metric-label">Campos esperados de respuesta</div>
-          <p>${escapeHtml(interaction.outputFields.join(', '))}</p>
-        </div>
-      </div>
       <p>${renderVisibleText(interaction.instructions)}</p>
       <div id="agent-run-message" class="form-note" role="status"></div>
       ${renderLoadingIndicator({
@@ -276,7 +247,7 @@ function renderAgentInteraction(profile) {
       </div>
       <div id="agent-visible-result" class="agent-document-result" hidden>
         <h2>Resultado del agente</h2>
-        <div id="agent-visible-result-content"></div>
+        <div id="agent-visible-result-content" class="agent-result-box"></div>
       </div>
       <details id="agent-technical-result" class="technical-result" hidden>
         <summary>Ver respuesta técnica</summary>
@@ -288,7 +259,7 @@ function renderAgentInteraction(profile) {
       (() => {
         const agentId = ${JSON.stringify(profile.id)};
         const agentName = ${JSON.stringify(profile.name)};
-        const interaction = ${JSON.stringify(interaction)};
+        const interaction = ${JSON.stringify(clientInteraction)};
         const expectedSections = ${JSON.stringify(expectedSections)};
         const executionEnabled = ${JSON.stringify(Boolean(execution.enabled))};
         const shouldOfferDownload = ${JSON.stringify(shouldOfferDownload)};
@@ -574,29 +545,49 @@ function renderAgentInteraction(profile) {
         }
 
         function getVisiblePayloadOutput(payload) {
+          if (payload?.status === 'BLOCKED' || payload?.status === 'AGENT_RUN_BLOCKED') {
+            const findings = Array.isArray(payload.findings)
+              ? payload.findings
+              : Array.isArray(payload.data?.findings)
+                ? payload.data.findings
+                : [];
+            const recommendations = Array.isArray(payload.recommendations) ? payload.recommendations : [];
+            const findingLines = findings
+              .map((finding) => '- ' + (finding?.message || String(finding)))
+              .join('\\n');
+            const recommendationLines = recommendations
+              .map((item) => '- ' + String(item))
+              .join('\\n');
+
+            return [
+              '## Solicitud bloqueada',
+              '',
+              payload.summary || 'Solicitud bloqueada por seguridad. La entrada contiene posibles datos sensibles, credenciales, tokens, datos financieros o información personal y no fue enviada al LLM. Elimina o reemplaza esos valores por marcadores como CLIENTE_001, CUENTA_REMOVIDA, TARJETA_REMOVIDA, TOKEN_REMOVIDO o SECRET_REMOVIDO.',
+              '',
+              findingLines ? '## Hallazgos\\n\\n' + findingLines : '',
+              recommendationLines ? '## Recomendaciones\\n\\n' + recommendationLines : ''
+            ].filter(Boolean).join('\\n\\n');
+          }
+
           return normalizeVisibleOutput(payload?.llmResponse || payload?.claudeResponse || payload?.rawModelText || '');
         }
 
         function buildReportMarkdown(result) {
           const timestamp = new Date().toISOString();
+          const reportBody = getVisiblePayloadOutput(result);
           return '# ' + agentName + '\\n\\n'
             + 'Fecha/hora: ' + timestamp + '\\n\\n'
-            + formatSection('summary', result.summary)
-            + formatSection('data', result.data)
-            + formatSection('risks', result.risks)
-            + formatSection('recommendations', result.recommendations)
-            + formatSection('openQuestions', result.openQuestions)
-            + (result.rawModelText ? formatSection('rawModelText', result.rawModelText) : '');
+            + (reportBody || [
+              formatSection('summary', result.summary),
+              formatSection('data', result.data),
+              formatSection('risks', result.risks),
+              formatSection('recommendations', result.recommendations),
+              formatSection('openQuestions', result.openQuestions),
+              result.rawModelText ? formatSection('rawModelText', result.rawModelText) : ''
+            ].filter(Boolean).join('\\n\\n'));
         }
 
-        function reportFileName() {
-          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-          const pattern = interaction.outputFileNamePattern || '<agent-id>-report-<timestamp>.md';
-          return pattern
-            .replaceAll('<agent-id>', agentId)
-            .replaceAll('<timestamp>', timestamp)
-            .replace(/[^a-zA-Z0-9._-]/g, '-');
-        }
+${renderReportDocxDownloadScript()}
 
         executeButton?.addEventListener('click', async () => {
           if (!executionEnabled) {
@@ -642,7 +633,7 @@ function renderAgentInteraction(profile) {
 
         downloadButton?.addEventListener('click', () => {
           if (!lastRunResult) return;
-          const blob = new Blob([buildReportMarkdown(lastRunResult)], { type: 'text/markdown;charset=utf-8' });
+          const blob = buildReportDocxBlob(lastRunResult);
           const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = url;
@@ -692,57 +683,29 @@ function renderAgentLlmSettings(profile) {
 }
 
 export function renderAgentDetailView(profile) {
-  const execution = profile.execution || {};
   const content = `
-    <header class="page-header">
-      <div>
-        <h1>${escapeHtml(profile.name)}</h1>
-        <p>${renderVisibleText(profile.description)}</p>
-      </div>
-      <div class="status-pill pending">Estado: ${escapeHtml(profile.statusLabel || profile.status)}</div>
-    </header>
+		    <header class="page-header">
+		      <div>
+	        <h1>${escapeHtml(profile.name)}</h1>
+	        <p>${renderVisibleText(profile.description)}</p>
+	      </div>
+	      <div class="agent-header-controls">
+	        <div class="status-pill pending">Estado: ${escapeHtml(profile.statusLabel || profile.status)}</div>
+	        ${renderAgentActions(profile)}
+	      </div>
+	    </header>
 
-    ${renderAgentActions(profile)}
+		    ${renderAgentInteraction(profile)}
 
-    ${renderAgentInteraction(profile)}
+	    <section class="agent-detail-grid">
+	      <div class="panel">
+	        <h2>Capacidades</h2>
+	        <ul>${renderList(profile.capabilities, 'Capacidades no definidas')}</ul>
+	      </div>
 
-    ${renderAgentLlmSettings(profile)}
-
-    <section class="module-grid">
-      <div class="panel">
-        <h2>Capacidades</h2>
-        <ul>${renderList(profile.capabilities, 'Capacidades no definidas')}</ul>
-      </div>
-
-      <div class="panel">
-        <h2>Ejecución</h2>
-        <ul>
-          <li>enabled: <code>${escapeHtml(String(Boolean(execution.enabled)))}</code></li>
-          <li>mode: <code>${escapeHtml(execution.mode || 'runtime-disabled')}</code></li>
-          <li>endpoint: <code>${escapeHtml(execution.runtimeEndpoint || `/agents/${profile.id}/run`)}</code></li>
-        </ul>
-        <p class="form-note">Ejecución deshabilitada hasta completar checklist, pruebas, sanitización, presupuesto y revisión humana.</p>
-      </div>
-
-      <div class="panel">
-        <h2>Input contract</h2>
-        <p class="form-note">Contratos técnicos generados automáticamente por la plataforma a partir de la configuración de entrada y salida. No son editables desde el formulario del agente.</p>
-        <pre><code>${renderJson(profile.inputContract)}</code></pre>
-      </div>
-
-      <div class="panel">
-        <h2>Output schema</h2>
-        <p class="form-note">Contratos técnicos generados automáticamente por la plataforma a partir de la configuración de entrada y salida. No son editables desde el formulario del agente.</p>
-        <pre><code>${renderJson(profile.outputSchema || profile.outputContract)}</code></pre>
-      </div>
-
-      <div class="panel">
-        <h2>Gobernanza</h2>
-        <p class="form-note">Reglas internas impuestas por la plataforma. No son editables desde el formulario del agente.</p>
-        <ul>${renderList(profile.governance, 'Reglas de gobierno no definidas')}</ul>
-      </div>
-    </section>
-  `;
+	      ${renderAgentLlmSettings(profile)}
+	    </section>
+	  `;
 
   return renderLayout({
     title: `QA IA Platform - ${profile.name}`,

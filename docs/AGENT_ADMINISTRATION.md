@@ -38,7 +38,6 @@ La edición permite actualizar:
 - Etiqueta de estado.
 - Orden de navegación.
 - Capacidades.
-- Gobernanza.
 - Contrato de entrada.
 - Contrato de salida.
 - `skill.md`.
@@ -48,6 +47,8 @@ La edición permite actualizar:
 - `readiness-checklist.md`.
 
 La edición no permite cambiar `agentId`.
+
+La gobernanza es interna: la plataforma la conserva y aplica desde backend/perfil/validaciones, pero no se muestra ni se edita desde pantallas de agentes.
 
 La edición no permite modificar `execution.enabled`, `execution.mode`, endpoint runtime ni endpoints legacy.
 

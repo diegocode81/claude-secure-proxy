@@ -1,16 +1,18 @@
-# Readiness Checklist
+# Checklist de activación
 
 - [ ] Propósito QA revisado.
-- [ ] Skill revisado.
-- [ ] Prompt oficial revisado.
+- [ ] Skill revisado por humano.
+- [ ] Prompt oficial revisado por humano.
 - [ ] Contrato de entrada validado.
 - [ ] Contrato de salida validado.
 - [ ] Configuración de interacción validada.
 - [ ] Configuración LLM validada.
-- [ ] Sanitización activa.
-- [ ] Control de presupuesto activo.
-- [ ] Prueba con input válido ejecutada.
-- [ ] Prueba con input inválido ejecutada.
-- [ ] Prueba anti prompt-injection ejecutada.
+- [ ] Sanitización de inputs configurada.
+- [ ] Presupuesto de tokens asignado.
+- [ ] Pruebas con input válido ejecutadas.
+- [ ] Pruebas con input inválido ejecutadas.
+- [ ] Pruebas anti prompt-injection ejecutadas.
+- [ ] Validación de salida esperada completada.
+- [ ] Revisión de riesgos completada.
 - [ ] Revisión humana completada.
 - [ ] Plan de rollback definido.
